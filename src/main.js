@@ -1,6 +1,6 @@
 // src/main.js
 import './style.css';
-import { db, auth } from './firebase.js'; // 💡 auth 추가
+import { db, auth } from './firebase.js';
 import { 
   collection, addDoc, getDocs, query, orderBy, serverTimestamp, 
   doc, deleteDoc, updateDoc, where 
@@ -10,7 +10,7 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged 
-} from 'firebase/auth'; // 💡 인증 함수 추가
+} from 'firebase/auth';
 import { i18n } from './i18n.js';
 import { analyzeBookshelfImage, fetchBookByISBN } from './api.js';
 import { renderScannedBooks, escapeHtml } from './ui.js';
@@ -93,22 +93,22 @@ let html5QrCode = null;
 // 🔐 로그인 상태 감지 및 화면 전환 로직
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    authContainer.style.display = 'none';
-    appMainWrapper.style.display = 'block';
+    if (authContainer) authContainer.style.display = 'none';
+    if (appMainWrapper) appMainWrapper.style.display = 'block';
     
     // 로그인 직후 초기 데이터 로드
     updateRoomDropdown();
     loadSavedBooks();
   } else {
-    authContainer.style.display = 'block';
-    appMainWrapper.style.display = 'none';
+    if (authContainer) authContainer.style.display = 'block';
+    if (appMainWrapper) appMainWrapper.style.display = 'none';
   }
 });
 
 // 로그인 버튼 이벤트
-btnLogin.addEventListener('click', async () => {
-  const email = authEmailInput.value.trim();
-  const password = authPasswordInput.value.trim();
+btnLogin?.addEventListener('click', async () => {
+  const email = authEmailInput?.value.trim() || '';
+  const password = authPasswordInput?.value.trim() || '';
   if (!email || !password) {
     alert('이메일과 비밀번호를 입력해주세요.');
     return;
@@ -121,9 +121,9 @@ btnLogin.addEventListener('click', async () => {
 });
 
 // 회원가입 버튼 이벤트
-btnRegister.addEventListener('click', async () => {
-  const email = authEmailInput.value.trim();
-  const password = authPasswordInput.value.trim();
+btnRegister?.addEventListener('click', async () => {
+  const email = authEmailInput?.value.trim() || '';
+  const password = authPasswordInput?.value.trim() || '';
   if (!email || !password) {
     alert('가입할 이메일과 비밀번호를 입력해주세요.');
     return;
@@ -137,7 +137,7 @@ btnRegister.addEventListener('click', async () => {
 });
 
 // 로그아웃 버튼 이벤트
-btnLogout.addEventListener('click', async () => {
+btnLogout?.addEventListener('click', async () => {
   try {
     await signOut(auth);
   } catch (error) {
@@ -146,7 +146,7 @@ btnLogout.addEventListener('click', async () => {
 });
 
 // 1. Switch App UI Language
-uiLanguageSelect.addEventListener('change', (e) => {
+uiLanguageSelect?.addEventListener('change', (e) => {
   currentLang = e.target.value;
   applyUiLanguage(currentLang);
 });
@@ -161,11 +161,11 @@ window.switchView = (viewId) => {
   subViews.forEach(v => v.style.display = 'none');
 
   if (viewId === 'mainDashboard') {
-    dashboard.style.display = 'block';
-    navBackBar.style.display = 'none';
+    if (dashboard) dashboard.style.display = 'block';
+    if (navBackBar) navBackBar.style.display = 'none';
   } else {
-    dashboard.style.display = 'none';
-    navBackBar.style.display = 'block';
+    if (dashboard) dashboard.style.display = 'none';
+    if (navBackBar) navBackBar.style.display = 'block';
     const targetView = document.getElementById(viewId);
     if (targetView) {
       targetView.style.display = 'block';
@@ -175,73 +175,82 @@ window.switchView = (viewId) => {
     }
   }
 
-  const currentLang = document.getElementById('uiLanguageSelect').value;
-  applyUiLanguage(currentLang);
+  const langSelect = document.getElementById('uiLanguageSelect');
+  const currentLangVal = langSelect ? langSelect.value : 'en';
+  applyUiLanguage(currentLangVal);
 };
 
 function applyUiLanguage(lang) {
-  const t = i18n[lang];
+  const t = i18n[lang] || i18n['en'];
   
-  document.getElementById('appTitle').textContent = t.appTitle;
-  document.getElementById('mainHeading').textContent = t.mainHeading;
-  document.getElementById('lblUiLang').textContent = t.lblUiLang;
+  const setTxt = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+
+  setTxt('appTitle', t.appTitle);
+  setTxt('mainHeading', t.mainHeading);
+  setTxt('lblUiLang', t.lblUiLang);
   
-  document.getElementById('menuScanTitle').textContent = t.menuScanTitle;
-  document.getElementById('menuScanDesc').textContent = t.menuScanDesc;
-  document.getElementById('menuGalleryTitle').textContent = t.menuGalleryTitle;
-  document.getElementById('menuGalleryDesc').textContent = t.menuGalleryDesc;
-  document.getElementById('menuSearchTitle').textContent = t.menuSearchTitle;
-  document.getElementById('menuSearchDesc').textContent = t.menuSearchDesc;
-  document.getElementById('menuBarcodeTitle').textContent = t.menuBarcodeTitle;
-  document.getElementById('menuBarcodeDesc').textContent = t.menuBarcodeDesc;
-  document.getElementById('backToMenuBtn').textContent = t.backToMenu;
+  setTxt('menuScanTitle', t.menuScanTitle);
+  setTxt('menuScanDesc', t.menuScanDesc);
+  setTxt('menuGalleryTitle', t.menuGalleryTitle);
+  setTxt('menuGalleryDesc', t.menuGalleryDesc);
+  setTxt('menuSearchTitle', t.menuSearchTitle);
+  setTxt('menuSearchDesc', t.menuSearchDesc);
+  setTxt('menuBarcodeTitle', t.menuBarcodeTitle);
+  setTxt('menuBarcodeDesc', t.menuBarcodeDesc);
+  setTxt('backToMenuBtn', t.backToMenu);
 
-  document.getElementById('scanViewTitle').textContent = t.scanViewTitle;
-  document.getElementById('lblTargetLang').textContent = t.lblTargetLang;
-  document.getElementById('roomInputLabel').textContent = t.roomInputLabel;
-  document.getElementById('shelfNameLabel').textContent = t.shelfNameLabel;
-  document.getElementById('lblTotalLayers').textContent = t.lblTotalLayers;
-  document.getElementById('lblCurrentLayer').textContent = t.lblCurrentLayer;
-  document.getElementById('lblShotsCount').textContent = t.lblShotsCount;
-  btnPhoto.textContent = t.btnPhoto;
-  document.getElementById('loading').textContent = t.txtLoading;
-  document.getElementById('txtDetectedBooks').textContent = t.txtDetectedBooks;
-  document.getElementById('saveBtn').textContent = t.saveBtn;
+  setTxt('scanViewTitle', t.scanViewTitle);
+  setTxt('lblTargetLang', t.lblTargetLang);
+  setTxt('roomInputLabel', t.roomInputLabel);
+  setTxt('shelfNameLabel', t.shelfNameLabel);
+  setTxt('lblTotalLayers', t.lblTotalLayers);
+  setTxt('lblCurrentLayer', t.lblCurrentLayer);
+  setTxt('lblShotsCount', t.lblShotsCount);
+  if (btnPhoto) btnPhoto.textContent = t.btnPhoto;
+  setTxt('loading', t.txtLoading);
+  setTxt('txtDetectedBooks', t.txtDetectedBooks);
+  if (saveBtn) saveBtn.textContent = t.saveBtn;
 
-  document.getElementById('galleryViewTitle').textContent = t.galleryViewTitle;
+  setTxt('galleryViewTitle', t.galleryViewTitle);
 
-  document.getElementById('searchViewTitle').textContent = t.searchViewTitle;
-  document.getElementById('lblSearch').textContent = t.lblSearch;
-  searchInput.placeholder = t.searchPlaceholder;
-  document.getElementById('lblFilterGroup').textContent = t.lblFilterGroup;
-  document.getElementById('deleteGroupBtn').textContent = t.deleteGroupBtn;
+  setTxt('searchViewTitle', t.searchViewTitle);
+  setTxt('lblSearch', t.lblSearch);
+  if (searchInput) searchInput.placeholder = t.searchPlaceholder;
+  setTxt('lblFilterGroup', t.lblFilterGroup);
+  if (deleteGroupBtn) deleteGroupBtn.textContent = t.deleteGroupBtn;
 
-  document.getElementById('barcodeViewTitle').textContent = t.barcodeViewTitle;
-  document.getElementById('barcodeDesc').textContent = t.barcodeDesc;
-  document.getElementById('bcRoomLabel').textContent = t.bcRoomLabel;
-  document.getElementById('bcShelfLabel').textContent = t.bcShelfLabel;
-  document.getElementById('bcLayerLabel').textContent = t.bcLayerLabel;
-  document.getElementById('bcPositionLabel').textContent = t.bcPositionLabel;
-  document.getElementById('isbnLabel').textContent = t.isbnLabel;
-  isbnInput.placeholder = t.isbnPlaceholder;
-  submitIsbnBtn.textContent = t.submitIsbnBtn;
+  setTxt('barcodeViewTitle', t.barcodeViewTitle);
+  setTxt('barcodeDesc', t.barcodeDesc);
+  setTxt('bcRoomLabel', t.bcRoomLabel);
+  setTxt('bcShelfLabel', t.bcShelfLabel);
+  setTxt('bcLayerLabel', t.bcLayerLabel);
+  setTxt('bcPositionLabel', t.bcPositionLabel);
+  setTxt('isbnLabel', t.isbnLabel);
+  if (isbnInput) isbnInput.placeholder = t.isbnPlaceholder;
+  if (submitIsbnBtn) submitIsbnBtn.textContent = t.submitIsbnBtn;
 
   updateLayerSelectOptions();
   updateRoomDropdown();
   loadSavedBooks();
 }
 
-targetLanguageSelect.addEventListener('change', () => {
+targetLanguageSelect?.addEventListener('change', () => {
   if (targetLanguageSelect.value === 'CUSTOM') {
-    customLanguageInput.style.display = 'block';
-    customLanguageInput.focus();
+    if (customLanguageInput) {
+      customLanguageInput.style.display = 'block';
+      customLanguageInput.focus();
+    }
   } else {
-    customLanguageInput.style.display = 'none';
+    if (customLanguageInput) customLanguageInput.style.display = 'none';
   }
 });
 
 function updateLayerSelectOptions() {
-  const t = i18n[currentLang];
+  if (!shelfLayerSelect || !totalLayersInput) return;
+  const t = i18n[currentLang] || i18n['en'];
   const total = parseInt(totalLayersInput.value) || 1;
   shelfLayerSelect.innerHTML = '';
   for (let i = 1; i <= total; i++) {
@@ -251,39 +260,41 @@ function updateLayerSelectOptions() {
     shelfLayerSelect.appendChild(opt);
   }
 }
-totalLayersInput.addEventListener('input', updateLayerSelectOptions);
+totalLayersInput?.addEventListener('input', updateLayerSelectOptions);
 
 function resetShotSession() {
   currentShotIndex = 0;
   accumulatedBooks = [];
   accumulatedFiles = [];
-  resultCard.style.display = 'none';
-  capturedImagePreview.style.display = 'none';
+  if (resultCard) resultCard.style.display = 'none';
+  if (capturedImagePreview) capturedImagePreview.style.display = 'none';
 }
 
-totalLayersInput.addEventListener('change', resetShotSession);
-shelfLayerSelect.addEventListener('change', resetShotSession);
-shotsPerLayerInput.addEventListener('change', resetShotSession);
+totalLayersInput?.addEventListener('change', resetShotSession);
+shelfLayerSelect?.addEventListener('change', resetShotSession);
+shotsPerLayerInput?.addEventListener('change', resetShotSession);
 
-cameraInput.addEventListener('change', async (event) => {
+cameraInput?.addEventListener('change', async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
-  const totalShots = parseInt(shotsPerLayerInput.value) || 1;
+  const totalShots = parseInt(shotsPerLayerInput?.value) || 1;
   currentShotIndex++;
   accumulatedFiles.push(file);
 
   const previewUrl = URL.createObjectURL(file);
-  capturedImagePreview.src = previewUrl;
-  capturedImagePreview.style.display = 'block';
-
-  let selectedLang = targetLanguageSelect.value;
-  if (selectedLang === 'CUSTOM') {
-    selectedLang = customLanguageInput.value.trim() || 'English';
+  if (capturedImagePreview) {
+    capturedImagePreview.src = previewUrl;
+    capturedImagePreview.style.display = 'block';
   }
 
-  loading.style.display = 'block';
-  resultCard.style.display = 'none';
+  let selectedLang = targetLanguageSelect ? targetLanguageSelect.value : 'en';
+  if (selectedLang === 'CUSTOM') {
+    selectedLang = customLanguageInput?.value.trim() || 'English';
+  }
+
+  if (loading) loading.style.display = 'block';
+  if (resultCard) resultCard.style.display = 'none';
 
   try {
     const newDetectedBooks = await analyzeBookshelfImage(file, selectedLang, apiKey);
@@ -308,29 +319,29 @@ cameraInput.addEventListener('change', async (event) => {
     });
 
     if (currentShotIndex < totalShots) {
-      alert(`${i18n[currentLang].shotProgress} (${currentShotIndex + 1}/${totalShots})`);
-      loading.style.display = 'none';
+      alert(`${i18n[currentLang]?.shotProgress || 'Shot saved.'} (${currentShotIndex + 1}/${totalShots})`);
+      if (loading) loading.style.display = 'none';
       cameraInput.value = '';
     } else {
-      loading.style.display = 'none';
+      if (loading) loading.style.display = 'none';
       renderScannedBooks(accumulatedBooks, resultCard, bookList);
     }
 
   } catch (error) {
     console.error('Analysis Error:', error);
     alert('Failed to analyze image.');
-    loading.style.display = 'none';
+    if (loading) loading.style.display = 'none';
   }
 });
 
-saveBtn.addEventListener('click', async () => {
-  const t = i18n[currentLang];
+saveBtn?.addEventListener('click', async () => {
+  const t = i18n[currentLang] || i18n['en'];
   if (accumulatedBooks.length === 0) return;
 
-  const room = document.getElementById('roomInput').value.trim() || 'Living Room';
-  const shelfName = document.getElementById('shelfName').value.trim() || 'Bookcase A';
-  const shelfLayer = shelfLayerSelect.value;
-  const totalLayers = totalLayersInput.value;
+  const room = document.getElementById('roomInput')?.value.trim() || 'Living Room';
+  const shelfName = document.getElementById('shelfName')?.value.trim() || 'Bookcase A';
+  const shelfLayer = shelfLayerSelect ? shelfLayerSelect.value : 1;
+  const totalLayers = totalLayersInput ? totalLayersInput.value : 1;
 
   try {
     saveBtn.disabled = true;
@@ -357,7 +368,7 @@ saveBtn.addEventListener('click', async () => {
     }
 
     alert(t.alertSuccessSave);
-    resultCard.style.display = 'none';
+    if (resultCard) resultCard.style.display = 'none';
     resetShotSession();
     
     await updateRoomDropdown();
@@ -374,7 +385,7 @@ saveBtn.addEventListener('click', async () => {
 if (startLiveScanBtn && stopLiveScanBtn) {
   startLiveScanBtn.addEventListener('click', async () => {
     const readerDiv = document.getElementById('reader');
-    readerDiv.style.display = 'block';
+    if (readerDiv) readerDiv.style.display = 'block';
     startLiveScanBtn.style.display = 'none';
     stopLiveScanBtn.style.display = 'inline-block';
 
@@ -389,7 +400,7 @@ if (startLiveScanBtn && stopLiveScanBtn) {
         { facingMode: "environment" }, 
         config, 
         (decodedText) => {
-          isbnInput.value = decodedText;
+          if (isbnInput) isbnInput.value = decodedText;
           alert(`바코드가 스캔되었습니다: ${decodedText}`);
           stopScanner();
         },
@@ -601,17 +612,17 @@ window.viewLayerGalleryPhotos = async (room, shelfName, layer, imageIds) => {
   }
 };
 
-submitIsbnBtn.addEventListener('click', async () => {
-  const isbn = isbnInput.value.trim();
+submitIsbnBtn?.addEventListener('click', async () => {
+  const isbn = isbnInput?.value.trim() || '';
   if (!isbn) {
     alert('Please enter an ISBN code.');
     return;
   }
 
-  const room = bcRoomInput.value.trim() || 'Living Room';
-  const shelfName = bcShelfInput.value.trim() || 'Bookcase A';
-  const shelfLayer = Number(bcLayerInput.value) || 1;
-  const position = Number(bcPositionInput.value) || 1;
+  const room = bcRoomInput?.value.trim() || 'Living Room';
+  const shelfName = bcShelfInput?.value.trim() || 'Bookcase A';
+  const shelfLayer = Number(bcLayerInput?.value) || 1;
+  const position = Number(bcPositionInput?.value) || 1;
 
   try {
     submitIsbnBtn.disabled = true;
@@ -631,8 +642,8 @@ submitIsbnBtn.addEventListener('click', async () => {
     });
 
     alert(`Successfully added:\n${bookInfo.title} (${bookInfo.author})`);
-    isbnInput.value = '';
-    bcPositionInput.value = position + 1;
+    if (isbnInput) isbnInput.value = '';
+    if (bcPositionInput) bcPositionInput.value = position + 1;
     await updateRoomDropdown();
     loadSavedBooks();
   } catch (error) {
@@ -645,7 +656,8 @@ submitIsbnBtn.addEventListener('click', async () => {
 });
 
 async function updateRoomDropdown() {
-  const t = i18n[currentLang];
+  if (!filterRoom) return;
+  const t = i18n[currentLang] || i18n['en'];
   try {
     const querySnapshot = await getDocs(collection(db, "books"));
     const rooms = new Set();
@@ -663,7 +675,8 @@ async function updateRoomDropdown() {
 }
 
 async function updateShelfDropdown(room) {
-  const t = i18n[currentLang];
+  if (!filterShelf) return;
+  const t = i18n[currentLang] || i18n['en'];
   try {
     const q = query(collection(db, "books"), where("room", "==", room));
     const querySnapshot = await getDocs(q);
@@ -683,7 +696,8 @@ async function updateShelfDropdown(room) {
 }
 
 async function updateLayerFilterOptions(room, shelf) {
-  const t = i18n[currentLang];
+  if (!filterLayer) return;
+  const t = i18n[currentLang] || i18n['en'];
   try {
     const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelf));
     const querySnapshot = await getDocs(q);
@@ -704,48 +718,55 @@ async function updateLayerFilterOptions(room, shelf) {
   }
 }
 
-filterRoom.addEventListener('change', async () => {
-  const t = i18n[currentLang];
+filterRoom?.addEventListener('change', async () => {
+  const t = i18n[currentLang] || i18n['en'];
   const selectedRoom = filterRoom.value;
   if (selectedRoom === 'ALL') {
-    filterShelf.innerHTML = `<option value="ALL">${t.allShelves}</option>`;
-    filterShelf.disabled = true;
-    filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
-    filterLayer.disabled = true;
+    if (filterShelf) {
+      filterShelf.innerHTML = `<option value="ALL">${t.allShelves}</option>`;
+      filterShelf.disabled = true;
+    }
+    if (filterLayer) {
+      filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
+      filterLayer.disabled = true;
+    }
   } else {
-    filterShelf.disabled = false;
+    if (filterShelf) filterShelf.disabled = false;
     await updateShelfDropdown(selectedRoom);
   }
-  filterLayer.value = 'ALL';
+  if (filterLayer) filterLayer.value = 'ALL';
   loadSavedBooks();
 });
 
-filterShelf.addEventListener('change', async () => {
-  const t = i18n[currentLang];
-  const selectedRoom = filterRoom.value;
+filterShelf?.addEventListener('change', async () => {
+  const t = i18n[currentLang] || i18n['en'];
+  const selectedRoom = filterRoom ? filterRoom.value : 'ALL';
   const selectedShelf = filterShelf.value;
 
   if (selectedShelf === 'ALL') {
-    filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
-    filterLayer.disabled = true;
+    if (filterLayer) {
+      filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
+      filterLayer.disabled = true;
+    }
   } else {
-    filterLayer.disabled = false;
+    if (filterLayer) filterLayer.disabled = false;
     await updateLayerFilterOptions(selectedRoom, selectedShelf);
   }
   loadSavedBooks();
 });
 
-filterLayer.addEventListener('change', loadSavedBooks);
-searchInput.addEventListener('input', loadSavedBooks);
+filterLayer?.addEventListener('change', loadSavedBooks);
+searchInput?.addEventListener('input', loadSavedBooks);
 
 async function loadSavedBooks() {
-  const t = i18n[currentLang];
+  if (!savedBookList) return;
+  const t = i18n[currentLang] || i18n['en'];
   savedBookList.innerHTML = '<small>Loading books...</small>';
   try {
-    const room = filterRoom.value;
-    const shelf = filterShelf.value;
-    const layer = filterLayer.value;
-    const keyword = searchInput.value.trim().toLowerCase();
+    const room = filterRoom ? filterRoom.value : 'ALL';
+    const shelf = filterShelf ? filterShelf.value : 'ALL';
+    const layer = filterLayer ? filterLayer.value : 'ALL';
+    const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
     let q;
     if (room === 'ALL') {
@@ -841,7 +862,7 @@ window.viewLocalImages = async (imageIds) => {
 };
 
 window.deleteBook = async (bookId, title) => {
-  const t = i18n[currentLang];
+  const t = i18n[currentLang] || i18n['en'];
   if (confirm(`${t.confirmDeleteSingle}"${title}"`)) {
     try {
       await deleteDoc(doc(db, "books", bookId));
@@ -857,53 +878,53 @@ window.deleteBook = async (bookId, title) => {
 window.openEditModal = (bookId, title, author, room, shelf, layer, position, isbn) => {
   currentEditingBookId = bookId;
   
-  editTitleInput.value = title;
-  editAuthorInput.value = author;
+  if (editTitleInput) editTitleInput.value = title;
+  if (editAuthorInput) editAuthorInput.value = author;
   if (editIsbnInput) editIsbnInput.value = (isbn && isbn !== 'undefined') ? isbn : '';
-  editRoomInput.value = room;
-  editShelfInput.value = shelf;
-  editLayerInput.value = layer;
-  editPositionInput.value = position;
+  if (editRoomInput) editRoomInput.value = room;
+  if (editShelfInput) editShelfInput.value = shelf;
+  if (editLayerInput) editLayerInput.value = layer;
+  if (editPositionInput) editPositionInput.value = position;
 
-  editModal.style.display = 'flex';
+  if (editModal) editModal.style.display = 'flex';
 };
 
-cancelEditBtn.addEventListener('click', () => {
-  editModal.style.display = 'none';
+cancelEditBtn?.addEventListener('click', () => {
+  if (editModal) editModal.style.display = 'none';
   currentEditingBookId = null;
 });
 
-fetchIsbnInModal.addEventListener('click', async () => {
-  const isbn = editIsbnInput.value.trim();
+fetchIsbnInModal?.addEventListener('click', async () => {
+  const isbn = editIsbnInput ? editIsbnInput.value.trim() : '';
   if (!isbn) {
     alert('Please enter an ISBN first.');
     return;
   }
   try {
-    fetchIsbnInModal.textContent = 'Fetching...';
+    if (fetchIsbnInModal) fetchIsbnInModal.textContent = 'Fetching...';
     const info = await fetchBookByISBN(isbn);
-    editTitleInput.value = info.title;
-    editAuthorInput.value = info.author;
+    if (editTitleInput) editTitleInput.value = info.title;
+    if (editAuthorInput) editAuthorInput.value = info.author;
     alert('Book info updated via ISBN!');
   } catch (err) {
     alert('Could not fetch book info for this ISBN.');
   } finally {
-    fetchIsbnInModal.textContent = '🔄 Fetch Info via ISBN';
+    if (fetchIsbnInModal) fetchIsbnInModal.textContent = '🔄 Fetch Info via ISBN';
   }
 });
 
-saveEditBtn.addEventListener('click', async () => {
+saveEditBtn?.addEventListener('click', async () => {
   if (!currentEditingBookId) return;
 
-  const t = i18n[currentLang];
+  const t = i18n[currentLang] || i18n['en'];
   const updatedData = {
-    title: editTitleInput.value.trim(),
-    author: editAuthorInput.value.trim(),
+    title: editTitleInput ? editTitleInput.value.trim() : '',
+    author: editAuthorInput ? editAuthorInput.value.trim() : '',
     isbn: editIsbnInput ? editIsbnInput.value.trim() : '',
-    room: editRoomInput.value.trim(),
-    shelfName: editShelfInput.value.trim(),
-    shelfLayer: Number(editLayerInput.value),
-    position: Number(editPositionInput.value)
+    room: editRoomInput ? editRoomInput.value.trim() : '',
+    shelfName: editShelfInput ? editShelfInput.value.trim() : '',
+    shelfLayer: editLayerInput ? Number(editLayerInput.value) : 1,
+    position: editPositionInput ? Number(editPositionInput.value) : 1
   };
 
   if (!updatedData.title || !updatedData.room) {
@@ -916,7 +937,7 @@ saveEditBtn.addEventListener('click', async () => {
     await updateDoc(doc(db, "books", currentEditingBookId), updatedData);
     
     alert(t.alertSuccessUpdate);
-    editModal.style.display = 'none';
+    if (editModal) editModal.style.display = 'none';
     currentEditingBookId = null;
 
     await updateRoomDropdown();
@@ -929,11 +950,11 @@ saveEditBtn.addEventListener('click', async () => {
   }
 });
 
-deleteGroupBtn.addEventListener('click', async () => {
-  const t = i18n[currentLang];
-  const room = filterRoom.value;
-  const shelf = filterShelf.value;
-  const layer = filterLayer.value;
+deleteGroupBtn?.addEventListener('click', async () => {
+  const t = i18n[currentLang] || i18n['en'];
+  const room = filterRoom ? filterRoom.value : 'ALL';
+  const shelf = filterShelf ? filterShelf.value : 'ALL';
+  const layer = filterLayer ? filterLayer.value : 'ALL';
 
   if (room === 'ALL') {
     alert(t.alertSelectRoomFirst);
