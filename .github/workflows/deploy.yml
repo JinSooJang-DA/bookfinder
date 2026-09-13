@@ -18,6 +18,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     # 여기에 환경 변수를 명시적으로 매핑해야 Actions Secrets를 읽어올 수 있습니다.
+    environment:
+      name: github-pages
+      
     env:
       VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
