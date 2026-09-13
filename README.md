@@ -2,7 +2,7 @@
 
 > A modern, responsive Progressive Web App (PWA) designed to seamlessly manage, search, and organize your personal library collection.
 
-![GitHub Actions Status](https://github.com/jinsoojang-da/jinsoojang-da.github.io/actions/workflows/deploy.yml/badge.svg)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
