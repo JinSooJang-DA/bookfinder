@@ -1,4 +1,4 @@
-<!-- index.html -->
+<!-- index.html 수정본 -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -6,6 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="appTitle">Bookshelf Scanner App</title>
+  <!-- 💡 절대 경로(/src/...)를 상대 경로(./src/...)로 변경 -->
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 
@@ -22,7 +23,6 @@
     <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password" style="width: 100%; padding: 8px; margin-bottom: 15px;">
     
     <button id="btnLogin" class="btn btn-success" style="width: 100%; margin-bottom: 8px;">Login</button>
-    <!-- <button id="btnRegister" class="btn btn-secondary" style="width: 100%; font-size: 0.85rem;">계정 만들기 (회원가입)</button> -->
   </div>
 
   <!-- 🚀 메인 앱 전체 영역 (로그인 후에만 표시됨) -->
@@ -179,7 +179,6 @@
 
         <label for="isbnInput" id="isbnLabel" style="margin-top: 10px; font-weight: bold;">ISBN Code</label>
         
-        <!-- 💡 실시간 카메라 바코드 스캔 영역 -->
         <div id="reader" style="width: 100%; max-width: 400px; margin: 10px auto; display: none;"></div>
         <button type="button" id="startLiveScanBtn" class="btn btn-secondary" style="margin-bottom: 8px; width: 100%;">📷 실시간 바코드 스캔 시작</button>
         <button type="button" id="stopLiveScanBtn" class="btn btn-danger" style="margin-bottom: 8px; width: 100%; display: none;">⏹️ 스캔 중지</button>
@@ -220,6 +219,7 @@
     </div>
   </div> <!-- // appMainWrapper 닫기 -->
 
+  <!-- 💡 절대 경로(/src/...)를 상대 경로(./src/...)로 변경 -->
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>
