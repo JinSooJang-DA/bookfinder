@@ -17,7 +17,7 @@ import { renderScannedBooks, escapeHtml } from './ui.js';
 import { saveImageLocally, getImageLocally } from './storage.js';
 import { Html5Qrcode } from 'html5-qrcode';
 
-// DOM Elements (인증 관련)
+// DOM Elements (Auth)
 const authContainer = document.getElementById('authContainer');
 const appMainWrapper = document.getElementById('appMainWrapper');
 const authEmailInput = document.getElementById('authEmail');
@@ -26,7 +26,7 @@ const btnLogin = document.getElementById('btnLogin');
 const btnRegister = document.getElementById('btnRegister');
 const btnLogout = document.getElementById('btnLogout');
 
-// DOM Elements (메인 앱 관련)
+// DOM Elements (Main App)
 const uiLanguageSelect = document.getElementById('uiLanguageSelect');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const customLanguageInput = document.getElementById('customLanguageInput');
@@ -54,6 +54,7 @@ const savedBookList = document.getElementById('savedBookList');
 const galleryContainer = document.getElementById('galleryContainer');
 
 // Barcode View Elements
+const barcodeView = document.getElementById('barcodeView');
 const submitIsbnBtn = document.getElementById('submitIsbnBtn');
 const isbnInput = document.getElementById('isbnInput');
 const bcRoomInput = document.getElementById('bcRoomInput');
@@ -87,16 +88,16 @@ let currentShotIndex = 0;
 let accumulatedBooks = [];
 let accumulatedFiles = [];
 
-// Html5Qrcode 인스턴스 관리
+// Html5Qrcode Instance Management
 let html5QrCode = null;
 
-// 🔐 로그인 상태 감지 및 화면 전환 로직
+// 🔐 Authentication State Observer and View Transition Logic
 onAuthStateChanged(auth, (user) => {
   if (user) {
     if (authContainer) authContainer.style.display = 'none';
     if (appMainWrapper) appMainWrapper.style.display = 'block';
     
-    // 로그인 직후 초기 데이터 로드
+    // Load initial data right after login
     updateRoomDropdown();
     loadSavedBooks();
   } else {
@@ -105,38 +106,38 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 로그인 버튼 이벤트
+// Login Button Event
 btnLogin?.addEventListener('click', async () => {
   const email = authEmailInput?.value.trim() || '';
   const password = authPasswordInput?.value.trim() || '';
   if (!email || !password) {
-    alert('이메일과 비밀번호를 입력해주세요.');
+    alert('Please enter both email and password.');
     return;
   }
   try {
     await signInWithEmailAndPassword(auth, email, password);
   } catch (error) {
-    alert('로그인 실패: ' + error.message);
+    alert('Login failed: ' + error.message);
   }
 });
 
-// 회원가입 버튼 이벤트
+// Register Button Event
 btnRegister?.addEventListener('click', async () => {
   const email = authEmailInput?.value.trim() || '';
   const password = authPasswordInput?.value.trim() || '';
   if (!email || !password) {
-    alert('가입할 이메일과 비밀번호를 입력해주세요.');
+    alert('Please enter email and password for registration.');
     return;
   }
   try {
     await createUserWithEmailAndPassword(auth, email, password);
-    alert('계정이 생성되었으며 자동으로 로그인됩니다.');
+    alert('Account created successfully and you are now logged in.');
   } catch (error) {
-    alert('회원가입 실패: ' + error.message);
+    alert('Registration failed: ' + error.message);
   }
 });
 
-// 로그아웃 버튼 이벤트
+// Logout Button Event
 btnLogout?.addEventListener('click', async () => {
   try {
     await signOut(auth);
@@ -171,6 +172,9 @@ window.switchView = (viewId) => {
       targetView.style.display = 'block';
       if (viewId === 'galleryView') {
         loadGalleryHierarchy();
+      }
+      if (viewId === 'barcodeView') {
+        loadBarcodeHierarchyOptions();
       }
     }
   }
@@ -381,7 +385,7 @@ saveBtn?.addEventListener('click', async () => {
   }
 });
 
-// 실시간 바코드 스캐너 시작 및 제어 로직
+// Live Barcode Scanner Start & Control Logic
 if (startLiveScanBtn && stopLiveScanBtn) {
   startLiveScanBtn.addEventListener('click', async () => {
     const readerDiv = document.getElementById('reader');
@@ -401,14 +405,14 @@ if (startLiveScanBtn && stopLiveScanBtn) {
         config, 
         (decodedText) => {
           if (isbnInput) isbnInput.value = decodedText;
-          alert(`바코드가 스캔되었습니다: ${decodedText}`);
+          alert(`Barcode scanned: ${decodedText}`);
           stopScanner();
         },
         () => {}
       );
     } catch (err) {
       console.error("Camera start error:", err);
-      alert("카메라를 시작할 수 없습니다. 권한을 확인해주세요.");
+      alert("Could not start camera. Please check permissions.");
       stopScanner();
     }
   });
@@ -429,6 +433,82 @@ function stopScanner() {
   if (startLiveScanBtn) startLiveScanBtn.style.display = 'inline-block';
   if (stopLiveScanBtn) stopLiveScanBtn.style.display = 'none';
 }
+
+// Load Existing Bookshelf and Position Information for Barcode View
+async function loadBarcodeHierarchyOptions() {
+  try {
+    const querySnapshot = await getDocs(collection(db, "books"));
+    const rooms = new Set();
+    const shelvesByRoom = {};
+    const booksByLocation = {};
+
+    querySnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const room = data.room || 'Living Room';
+      const shelf = data.shelfName || 'Bookcase A';
+      const layer = data.shelfLayer || 1;
+
+      rooms.add(room);
+      if (!shelvesByRoom[room]) shelvesByRoom[room] = new Set();
+      shelvesByRoom[room].add(shelf);
+
+      const key = `${room}_${shelf}_${layer}`;
+      if (!booksByLocation[key]) booksByLocation[key] = [];
+      booksByLocation[key].push(data);
+    });
+
+    const defaultRoom = bcRoomInput?.value.trim() || Array.from(rooms)[0] || 'Living Room';
+    const defaultShelf = bcShelfInput?.value.trim() || 'Bookcase A';
+    const defaultLayer = Number(bcLayerInput?.value) || 1;
+
+    if (bcRoomInput && !bcRoomInput.value && rooms.size > 0) {
+      bcRoomInput.value = Array.from(rooms)[0];
+    }
+    if (bcShelfInput && !bcShelfInput.value && shelvesByRoom[defaultRoom]?.size > 0) {
+      bcShelfInput.value = Array.from(shelvesByRoom[defaultRoom])[0];
+    }
+
+    const currentKey = `${bcRoomInput?.value || defaultRoom}_${bcShelfInput?.value || defaultShelf}_${Number(bcLayerInput?.value) || defaultLayer}`;
+    const currentBooks = booksByLocation[currentKey] || [];
+    currentBooks.sort((a, b) => (a.position || 0) - (b.position || 0));
+
+    // Automatically suggest the next position
+    if (bcPositionInput && !bcPositionInput.value) {
+      bcPositionInput.value = currentBooks.length + 1;
+    }
+
+    let barcodeInfoDiv = document.getElementById('barcodeExistingBooksInfo');
+    if (!barcodeInfoDiv && barcodeView) {
+      barcodeInfoDiv = document.createElement('div');
+      barcodeInfoDiv.id = 'barcodeExistingBooksInfo';
+      barcodeInfoDiv.style.margin = '15px 0';
+      barcodeInfoDiv.style.padding = '12px';
+      barcodeInfoDiv.style.background = '#f8f9fa';
+      barcodeInfoDiv.style.borderRadius = '8px';
+      barcodeInfoDiv.style.border = '1px solid #e9ecef';
+      barcodeView.appendChild(barcodeInfoDiv);
+    }
+
+    if (barcodeInfoDiv) {
+      if (currentBooks.length > 0) {
+        let html = `<strong>📍 Existing books registered in this Fach (${currentBooks.length} items):</strong><ul style="margin: 5px 0 0 20px; padding: 0; font-size: 0.9rem;">`;
+        currentBooks.forEach(b => {
+          html += `<li>Pos ${b.position}: <b>${escapeHtml(b.title)}</b> (${escapeHtml(b.author || 'Unknown')})</li>`;
+        });
+        html += `</ul><small style="color: #666; display: block; margin-top: 5px;">💡 To insert a new book between existing books, specify the target position number. Subsequent books' positions will be automatically updated.</small>`;
+        barcodeInfoDiv.innerHTML = html;
+      } else {
+        barcodeInfoDiv.innerHTML = `<span style="color: #666; font-size: 0.9rem;">📍 No books registered in the selected room/shelf/layer. (Will be added as the first book.)</span>`;
+      }
+    }
+  } catch (err) {
+    console.error('Load Barcode Hierarchy Error:', err);
+  }
+}
+
+bcRoomInput?.addEventListener('input', loadBarcodeHierarchyOptions);
+bcShelfInput?.addEventListener('input', loadBarcodeHierarchyOptions);
+bcLayerInput?.addEventListener('change', loadBarcodeHierarchyOptions);
 
 async function loadGalleryHierarchy() {
   if (!galleryContainer) return;
@@ -529,7 +609,7 @@ async function loadGalleryHierarchy() {
 }
 
 window.deleteShelfScope = async (room, shelfName) => {
-  if (confirm(`정말 "${room}" 방의 "${shelfName}" 책장에 속한 모든 도서와 사진 기록을 삭제하시겠습니까?`)) {
+  if (confirm(`Are you sure you want to delete all books and photo records in room "${room}", bookshelf "${shelfName}"?`)) {
     try {
       const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelfName));
       const querySnapshot = await getDocs(q);
@@ -537,19 +617,19 @@ window.deleteShelfScope = async (room, shelfName) => {
       querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
 
       await Promise.all(deletePromises);
-      alert('책장이 성공적으로 삭제되었습니다.');
+      alert('Bookshelf deleted successfully.');
       await updateRoomDropdown();
       loadGalleryHierarchy();
       loadSavedBooks();
     } catch (error) {
       console.error('Shelf Delete Error:', error);
-      alert('책장 삭제에 실패했습니다.');
+      alert('Failed to delete bookshelf.');
     }
   }
 };
 
 window.deleteLayerScope = async (room, shelfName, layer) => {
-  if (confirm(`정말 "${room}" - "${shelfName}"의 ${layer}층에 속한 기록들을 삭제하시겠습니까?`)) {
+  if (confirm(`Are you sure you want to delete records in room "${room}" - "${shelfName}", Layer ${layer}?`)) {
     try {
       const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelfName), where("shelfLayer", "==", Number(layer)));
       const querySnapshot = await getDocs(q);
@@ -557,13 +637,13 @@ window.deleteLayerScope = async (room, shelfName, layer) => {
       querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
 
       await Promise.all(deletePromises);
-      alert('해당 층 데이터가 성공적으로 삭제되었습니다.');
+      alert('Layer data deleted successfully.');
       await updateRoomDropdown();
       loadGalleryHierarchy();
       loadSavedBooks();
     } catch (error) {
       console.error('Layer Delete Error:', error);
-      alert('층 삭제에 실패했습니다.');
+      alert('Failed to delete layer.');
     }
   }
 };
@@ -612,6 +692,7 @@ window.viewLayerGalleryPhotos = async (room, shelfName, layer, imageIds) => {
   }
 };
 
+// ISBN Barcode Add & Position Reordering Logic
 submitIsbnBtn?.addEventListener('click', async () => {
   const isbn = isbnInput?.value.trim() || '';
   if (!isbn) {
@@ -622,7 +703,7 @@ submitIsbnBtn?.addEventListener('click', async () => {
   const room = bcRoomInput?.value.trim() || 'Living Room';
   const shelfName = bcShelfInput?.value.trim() || 'Bookcase A';
   const shelfLayer = Number(bcLayerInput?.value) || 1;
-  const position = Number(bcPositionInput?.value) || 1;
+  const targetPosition = Number(bcPositionInput?.value) || 1;
 
   try {
     submitIsbnBtn.disabled = true;
@@ -630,25 +711,71 @@ submitIsbnBtn?.addEventListener('click', async () => {
 
     const bookInfo = await fetchBookByISBN(isbn);
 
-    await addDoc(collection(db, "books"), {
+    // 1. Fetch existing books in the target layer (Fach)
+    const q = query(
+      collection(db, "books"),
+      where("room", "==", room),
+      where("shelfName", "==", shelfName),
+      where("shelfLayer", "==", shelfLayer)
+    );
+    const querySnapshot = await getDocs(q);
+    const existingBooks = [];
+    querySnapshot.forEach(docSnap => {
+      existingBooks.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    // 2. Sort existing books by position
+    existingBooks.sort((a, b) => (a.position || 0) - (b.position || 0));
+
+    const newBookData = {
       title: bookInfo.title,
-      author: bookInfo.author,
-      isbn: bookInfo.isbn,
+      author: bookInfo.author || 'Unknown',
+      isbn: bookInfo.isbn || isbn,
       room: room,
       shelfName: shelfName,
       shelfLayer: shelfLayer,
-      position: position,
       createdAt: serverTimestamp()
-    });
+    };
 
-    alert(`Successfully added:\n${bookInfo.title} (${bookInfo.author})`);
+    // 3. Insert the new book at the target position and construct final array
+    let inserted = false;
+    const finalBooksList = [];
+    
+    for (const b of existingBooks) {
+      if (!inserted && (b.position || 1) >= targetPosition) {
+        finalBooksList.push({ ...newBookData, position: targetPosition });
+        inserted = true;
+      }
+      finalBooksList.push(b);
+    }
+    if (!inserted) {
+      finalBooksList.push({ ...newBookData, position: targetPosition });
+    }
+
+    // 4. Recalculate position numbers sequentially from 1 and update DB
+    for (let i = 0; i < finalBooksList.length; i++) {
+      const item = finalBooksList[i];
+      const newPos = i + 1;
+      if (item.id) {
+        await updateDoc(doc(db, "books", item.id), { position: newPos });
+      } else {
+        await addDoc(collection(db, "books"), {
+          ...item,
+          position: newPos,
+          createdAt: serverTimestamp()
+        });
+      }
+    }
+
+    alert(`Successfully added & reordered:\n${bookInfo.title} (${bookInfo.author})`);
     if (isbnInput) isbnInput.value = '';
-    if (bcPositionInput) bcPositionInput.value = position + 1;
+    if (bcPositionInput) bcPositionInput.value = targetPosition + 1;
     await updateRoomDropdown();
     loadSavedBooks();
+    await loadBarcodeHierarchyOptions();
   } catch (error) {
-    console.error('ISBN Add Error:', error);
-    alert('Failed to fetch or save book via ISBN. Please check the code.');
+    console.error('ISBN Add & Reorder Error:', error);
+    alert('Failed to fetch or save book via ISBN.');
   } finally {
     submitIsbnBtn.disabled = false;
     submitIsbnBtn.textContent = '➕ Add Book';
