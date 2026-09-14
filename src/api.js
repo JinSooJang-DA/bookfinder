@@ -1,9 +1,6 @@
 // src/api.js
 import { GoogleGenAI } from '@google/genai';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey });
-
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -13,7 +10,9 @@ export function fileToBase64(file) {
   });
 }
 
-export async function analyzeBookshelfImage(file, selectedLang) {
+export async function analyzeBookshelfImage(file, selectedLang, apiKey) {
+  // 함수가 호출되는 시점에 전달받은 apiKey를 사용해 인스턴스 생성
+  const ai = new GoogleGenAI({ apiKey });
   const base64Image = await fileToBase64(file);
 
   const langInstruction = selectedLang === 'Original'
