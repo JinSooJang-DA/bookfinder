@@ -3,7 +3,7 @@ import { db } from './firebase.js';
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { escapeHtml } from './ui.js';
 import { getImageLocally } from './storage.js';
-import { updateRoomDropdown, loadSavedBooks } from './bookList.js';
+import { updateRoomDropdown, loadSavedBooks } from './booklist.js';
 
 let galleryContainer = null;
 
