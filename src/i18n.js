@@ -64,7 +64,38 @@ export const i18n = {
     alertSuccessDelete: "Successfully deleted.",
     alertSuccessUpdate: "Successfully updated!",
     alertSelectRoomFirst: "Please select a specific room first.",
-    shotProgress: "Photo captured. Please take photo "
+    shotProgress: "Photo captured. Please take photo ",
+
+    // 인증 및 로그인 관련
+    authEmailPasswordRequired: "Please enter both email and password.",
+    authRegisterRequired: "Please enter email and password for registration.",
+    loginFailed: "Login failed: ",
+    registerSuccess: "Account created successfully and you are now logged in.",
+    registerFailed: "Registration failed: ",
+
+    // 도서 수정 모달 및 ISBN 관련
+    enterIsbnFirst: "Please enter an ISBN first.",
+    fetchingIsbn: "Fetching...",
+    fetchIsbnBtn: "🔄 Fetch Info via ISBN",
+    isbnFetchSuccess: "Book info updated via ISBN!",
+    isbnFetchFail: "Could not fetch book info for this ISBN.",
+    updateTitleRoomRequired: "Please fill in at least the Title and Room Name.",
+    failUpdateBook: "Failed to update book information.",
+    failSaveBook: "Failed to save books.",
+    failAnalyzeImage: "Failed to analyze image.",
+
+    // 갤러리 및 삭제 관련
+    galleryLoading: "Loading bookshelf gallery...",
+    galleryEmpty: "No bookshelf records found in database yet.",
+    galleryError: "Failed to load gallery hierarchy.",
+    shelfDeleteConfirm: "Are you sure you want to delete all books and photo records in room",
+    shelfDeleteSuccess: "Bookshelf deleted successfully.",
+    shelfDeleteFail: "Failed to delete bookshelf.",
+    layerDeleteConfirm: "Are you sure you want to delete records in room",
+    layerDeleteSuccess: "Layer data deleted successfully.",
+    layerDeleteFail: "Failed to delete layer.",
+    noPhoto: "No photo",
+    noImageLocal: "No image files found locally."
   },
   de: {
     appTitle: "📚 Bücherregal-Scanner",
@@ -130,7 +161,38 @@ export const i18n = {
     alertSuccessDelete: "Erfolgreich gelöscht.",
     alertSuccessUpdate: "Erfolgreich aktualisiert!",
     alertSelectRoomFirst: "Bitte wählen Sie zuerst einen bestimmten Raum aus.",
-    shotProgress: "Foto gespeichert. Bitte machen Sie Foto "
+    shotProgress: "Foto gespeichert. Bitte machen Sie Foto ",
+
+    // 인증 및 로그인 관련
+    authEmailPasswordRequired: "Bitte geben Sie E-Mail und Passwort ein.",
+    authRegisterRequired: "Bitte geben Sie E-Mail und Passwort für die Registrierung ein.",
+    loginFailed: "Anmeldung fehlgeschlagen: ",
+    registerSuccess: "Konto erfolgreich erstellt und Sie sind jetzt angemeldet.",
+    registerFailed: "Registrierung fehlgeschlagen: ",
+
+    // 도서 수정 모달 및 ISBN 관련
+    enterIsbnFirst: "Bitte geben Sie zuerst eine ISBN ein.",
+    fetchingIsbn: "Wird geladen...",
+    fetchIsbnBtn: "🔄 Info via ISBN abrufen",
+    isbnFetchSuccess: "Buchinfo via ISBN aktualisiert!",
+    isbnFetchFail: "Buchinfo für diese ISBN konnte nicht abgerufen werden.",
+    updateTitleRoomRequired: "Bitte füllen Sie mindestens Titel und Raumname aus.",
+    failUpdateBook: "Aktualisierung der Buchinformationen fehlgeschlagen.",
+    failSaveBook: "Speichern der Bücher fehlgeschlagen.",
+    failAnalyzeImage: "Bildanalyse fehlgeschlagen.",
+
+    // 갤러리 및 삭제 관련
+    galleryLoading: "Regalgalerie wird geladen...",
+    galleryEmpty: "Noch keine Regaleinträge in der Datenbank gefunden.",
+    galleryError: "Fehler beim Laden der Galeriehierarchie.",
+    shelfDeleteConfirm: "Möchten Sie wirklich alle Bücher und Fotodatensätze im Raum",
+    shelfDeleteSuccess: "Regal erfolgreich gelöscht.",
+    shelfDeleteFail: "Fehler beim Löschen des Regals.",
+    layerDeleteConfirm: "Möchten Sie wirklich die Datensätze im Raum",
+    layerDeleteSuccess: "Fachdaten erfolgreich gelöscht.",
+    layerDeleteFail: "Fehler beim Löschen des Fachs.",
+    noPhoto: "Kein Foto",
+    noImageLocal: "Keine Bilddateien lokal gefunden."
   },
   ko: {
     appTitle: "📚 책장 스캐너",
@@ -196,6 +258,37 @@ export const i18n = {
     alertSuccessDelete: "성공적으로 삭제되었습니다.",
     alertSuccessUpdate: "성공적으로 수정되었습니다!",
     alertSelectRoomFirst: "먼저 특정 방을 선택해 주세요.",
-    shotProgress: "사진이 저장되었습니다. 다음 사진을 촬영하세요: "
+    shotProgress: "사진이 저장되었습니다. 다음 사진을 촬영하세요: ",
+
+    // 인증 및 로그인 관련
+    authEmailPasswordRequired: "이메일과 비밀번호를 모두 입력해 주세요.",
+    authRegisterRequired: "회원가입을 위해 이메일과 비밀번호를 입력해 주세요.",
+    loginFailed: "로그인 실패: ",
+    registerSuccess: "계정이 성공적으로 생성되었으며 현재 로그인되어 있습니다.",
+    registerFailed: "회원가입 실패: ",
+
+    // 도서 수정 모달 및 ISBN 관련
+    enterIsbnFirst: "먼저 ISBN을 입력해 주세요.",
+    fetchingIsbn: "가져오는 중...",
+    fetchIsbnBtn: "🔄 ISBN으로 정보 가져오기",
+    isbnFetchSuccess: "ISBN을 통해 도서 정보가 업데이트되었습니다!",
+    isbnFetchFail: "이 ISBN에 대한 도서 정보를 가져올 수 없습니다.",
+    updateTitleRoomRequired: "최소한 제목과 방 이름을 입력해 주세요.",
+    failUpdateBook: "도서 정보 업데이트에 실패했습니다.",
+    failSaveBook: "도서 저장에 실패했습니다.",
+    failAnalyzeImage: "이미지 분석에 실패했습니다.",
+
+    // 갤러리 및 삭제 관련
+    galleryLoading: "책장 갤러리를 불러오는 중...",
+    galleryEmpty: "데이터베이스에 등록된 책장 기록이 없습니다.",
+    galleryError: "갤러리 계층 구조를 불러오는 데 실패했습니다.",
+    shelfDeleteConfirm: "정말 다음 방의 모든 책장 및 사진 기록을 삭제하시겠습니까? 방: ",
+    shelfDeleteSuccess: "책장이 성공적으로 삭제되었습니다.",
+    shelfDeleteFail: "책장 삭제에 실패했습니다.",
+    layerDeleteConfirm: "정말 다음 영역의 기록을 삭제하시겠습니까? 방 및 책장: ",
+    layerDeleteSuccess: "칸 데이터가 성공적으로 삭제되었습니다.",
+    layerDeleteFail: "칸 삭제에 실패했습니다.",
+    noPhoto: "사진 없음",
+    noImageLocal: "로컬에 저장된 이미지 파일이 없습니다."
   }
 };

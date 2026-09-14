@@ -2,8 +2,8 @@
 import './style.css';
 import { db, auth } from './firebase.js';
 import { 
-  collection, addDoc, getDocs, query, orderBy, serverTimestamp, 
-  doc, deleteDoc, updateDoc, where 
+  collection, query, 
+  doc, updateDoc, where, serverTimestamp, addDoc, getDocs, deleteDoc 
 } from 'firebase/firestore';
 import { 
   signInWithEmailAndPassword, 
@@ -13,9 +13,13 @@ import {
 } from 'firebase/auth';
 import { i18n } from './i18n.js';
 import { analyzeBookshelfImage, fetchBookByISBN } from './api.js';
-import { renderScannedBooks, escapeHtml } from './ui.js';
-import { saveImageLocally, getImageLocally } from './storage.js';
-import { Html5Qrcode } from 'html5-qrcode';
+import { renderScannedBooks } from './ui.js';
+import { saveImageLocally } from './storage.js';
+
+// 외부 모듈 불러오기
+import { initBarcodeModule, loadBarcodeHierarchyOptions, stopScanner } from './barcode.js';
+import { initBookListModule, updateRoomDropdown, loadSavedBooks } from './booklist.js';
+import { initGalleryModule, loadGalleryHierarchy } from './gallery.js';
 
 // DOM Elements (Auth)
 const authContainer = document.getElementById('authContainer');
@@ -43,28 +47,10 @@ const totalLayersInput = document.getElementById('totalLayers');
 const shelfLayerSelect = document.getElementById('shelfLayer');
 const shotsPerLayerInput = document.getElementById('shotsPerLayer');
 
-const searchInput = document.getElementById('searchInput');
 const filterRoom = document.getElementById('filterRoom');
 const filterShelf = document.getElementById('filterShelf');
 const filterLayer = document.getElementById('filterLayer');
 const deleteGroupBtn = document.getElementById('deleteGroupBtn');
-const savedBookList = document.getElementById('savedBookList');
-
-// Gallery View Elements
-const galleryContainer = document.getElementById('galleryContainer');
-
-// Barcode View Elements
-const barcodeView = document.getElementById('barcodeView');
-const submitIsbnBtn = document.getElementById('submitIsbnBtn');
-const isbnInput = document.getElementById('isbnInput');
-const bcRoomInput = document.getElementById('bcRoomInput');
-const bcShelfInput = document.getElementById('bcShelfInput');
-const bcLayerInput = document.getElementById('bcLayerInput');
-const bcPositionInput = document.getElementById('bcPositionInput');
-
-// Live Scanner Elements
-const startLiveScanBtn = document.getElementById('startLiveScanBtn');
-const stopLiveScanBtn = document.getElementById('stopLiveScanBtn');
 
 // Edit Modal Elements
 const editModal = document.getElementById('editModal');
@@ -88,8 +74,13 @@ let currentShotIndex = 0;
 let accumulatedBooks = [];
 let accumulatedFiles = [];
 
-// Html5Qrcode Instance Management
-let html5QrCode = null;
+// 모듈 초기화 연결
+initBookListModule({
+  getCurrentLang: () => currentLang,
+  openEditModalCallback: openEditModal
+});
+
+initGalleryModule();
 
 // 🔐 Authentication State Observer and View Transition Logic
 onAuthStateChanged(auth, (user) => {
@@ -97,9 +88,13 @@ onAuthStateChanged(auth, (user) => {
     if (authContainer) authContainer.style.display = 'none';
     if (appMainWrapper) appMainWrapper.style.display = 'block';
     
-    // Load initial data right after login
     updateRoomDropdown();
     loadSavedBooks();
+
+    initBarcodeModule({
+      updateRoomDropdown,
+      loadSavedBooks
+    });
   } else {
     if (authContainer) authContainer.style.display = 'block';
     if (appMainWrapper) appMainWrapper.style.display = 'none';
@@ -222,6 +217,7 @@ function applyUiLanguage(lang) {
 
   setTxt('searchViewTitle', t.searchViewTitle);
   setTxt('lblSearch', t.lblSearch);
+  const searchInput = document.getElementById('searchInput');
   if (searchInput) searchInput.placeholder = t.searchPlaceholder;
   setTxt('lblFilterGroup', t.lblFilterGroup);
   if (deleteGroupBtn) deleteGroupBtn.textContent = t.deleteGroupBtn;
@@ -233,8 +229,12 @@ function applyUiLanguage(lang) {
   setTxt('bcLayerLabel', t.bcLayerLabel);
   setTxt('bcPositionLabel', t.bcPositionLabel);
   setTxt('isbnLabel', t.isbnLabel);
-  if (isbnInput) isbnInput.placeholder = t.isbnPlaceholder;
-  if (submitIsbnBtn) submitIsbnBtn.textContent = t.submitIsbnBtn;
+  
+  const isbnInputEl = document.getElementById('isbnInput');
+  if (isbnInputEl) isbnInputEl.placeholder = t.isbnPlaceholder;
+  
+  const submitIsbnBtnEl = document.getElementById('submitIsbnBtn');
+  if (submitIsbnBtnEl) submitIsbnBtnEl.textContent = t.submitIsbnBtn;
 
   updateLayerSelectOptions();
   updateRoomDropdown();
@@ -385,670 +385,7 @@ saveBtn?.addEventListener('click', async () => {
   }
 });
 
-// Live Barcode Scanner Start & Control Logic
-if (startLiveScanBtn && stopLiveScanBtn) {
-  startLiveScanBtn.addEventListener('click', async () => {
-    const readerDiv = document.getElementById('reader');
-    if (readerDiv) readerDiv.style.display = 'block';
-    startLiveScanBtn.style.display = 'none';
-    stopLiveScanBtn.style.display = 'inline-block';
-
-    if (!html5QrCode) {
-      html5QrCode = new Html5Qrcode("reader");
-    }
-
-    const config = { fps: 10, qrbox: { width: 250, height: 100 } };
-
-    try {
-      await html5QrCode.start(
-        { facingMode: "environment" }, 
-        config, 
-        (decodedText) => {
-          if (isbnInput) isbnInput.value = decodedText;
-          alert(`Barcode scanned: ${decodedText}`);
-          stopScanner();
-        },
-        () => {}
-      );
-    } catch (err) {
-      console.error("Camera start error:", err);
-      alert("Could not start camera. Please check permissions.");
-      stopScanner();
-    }
-  });
-
-  stopLiveScanBtn.addEventListener('click', () => {
-    stopScanner();
-  });
-}
-
-function stopScanner() {
-  if (html5QrCode && html5QrCode.isScanning) {
-    html5QrCode.stop().then(() => {}).catch(err => {
-      console.error("Failed to stop scanner.", err);
-    });
-  }
-  const readerDiv = document.getElementById('reader');
-  if (readerDiv) readerDiv.style.display = 'none';
-  if (startLiveScanBtn) startLiveScanBtn.style.display = 'inline-block';
-  if (stopLiveScanBtn) stopLiveScanBtn.style.display = 'none';
-}
-
-// Load Existing Bookshelf and Position Information for Barcode View (Dropdown Support)
-async function loadBarcodeHierarchyOptions() {
-  try {
-    const querySnapshot = await getDocs(collection(db, "books"));
-    const rooms = new Set();
-    const shelvesByRoom = {};
-    const booksByLocation = {};
-
-    querySnapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const room = data.room || 'Living Room';
-      const shelf = data.shelfName || 'Bookcase A';
-      const layer = data.shelfLayer || 1;
-
-      rooms.add(room);
-      if (!shelvesByRoom[room]) shelvesByRoom[room] = new Set();
-      shelvesByRoom[room].add(shelf);
-
-      const key = `${room}_${shelf}_${layer}`;
-      if (!booksByLocation[key]) booksByLocation[key] = [];
-      booksByLocation[key].push(data);
-    });
-
-    // Populate Room Select Options
-    if (bcRoomInput) {
-      const currentRoomVal = bcRoomInput.value;
-      bcRoomInput.innerHTML = '';
-      rooms.forEach(room => {
-        const opt = document.createElement('option');
-        opt.value = room;
-        opt.textContent = room;
-        bcRoomInput.appendChild(opt);
-      });
-      if (rooms.size === 0) {
-        const opt = document.createElement('option');
-        opt.value = 'Living Room';
-        opt.textContent = 'Living Room';
-        bcRoomInput.appendChild(opt);
-      }
-      if (currentRoomVal && (rooms.has(currentRoomVal) || currentRoomVal === 'Living Room')) {
-        bcRoomInput.value = currentRoomVal;
-      } else if (rooms.size > 0) {
-        bcRoomInput.value = Array.from(rooms)[0];
-      }
-    }
-
-    const selectedRoom = bcRoomInput?.value || 'Living Room';
-
-    // Populate Shelf Select Options based on selected Room
-    if (bcShelfInput) {
-      const currentShelfVal = bcShelfInput.value;
-      bcShelfInput.innerHTML = '';
-      const shelves = shelvesByRoom[selectedRoom] || new Set();
-      shelves.forEach(shelf => {
-        const opt = document.createElement('option');
-        opt.value = shelf;
-        opt.textContent = shelf;
-        bcShelfInput.appendChild(opt);
-      });
-      if (shelves.size === 0) {
-        const opt = document.createElement('option');
-        opt.value = 'Bookcase A';
-        opt.textContent = 'Bookcase A';
-        bcShelfInput.appendChild(opt);
-      }
-      if (currentShelfVal && (shelves.has(currentShelfVal) || currentShelfVal === 'Bookcase A')) {
-        bcShelfInput.value = currentShelfVal;
-      } else if (shelves.size > 0) {
-        bcShelfInput.value = Array.from(shelves)[0];
-      }
-    }
-
-    const selectedShelf = bcShelfInput?.value || 'Bookcase A';
-    const selectedLayer = Number(bcLayerInput?.value) || 1;
-
-    const currentKey = `${selectedRoom}_${selectedShelf}_${selectedLayer}`;
-    const currentBooks = booksByLocation[currentKey] || [];
-    currentBooks.sort((a, b) => (a.position || 0) - (b.position || 0));
-
-    // Automatically suggest the next position
-    if (bcPositionInput) {
-      bcPositionInput.value = currentBooks.length + 1;
-    }
-
-    let barcodeInfoDiv = document.getElementById('barcodeExistingBooksInfo');
-    if (!barcodeInfoDiv && barcodeView) {
-      barcodeInfoDiv = document.createElement('div');
-      barcodeInfoDiv.id = 'barcodeExistingBooksInfo';
-      barcodeInfoDiv.style.margin = '15px 0';
-      barcodeInfoDiv.style.padding = '12px';
-      barcodeInfoDiv.style.background = '#f8f9fa';
-      barcodeInfoDiv.style.borderRadius = '8px';
-      barcodeInfoDiv.style.border = '1px solid #e9ecef';
-      barcodeView.appendChild(barcodeInfoDiv);
-    }
-
-    if (barcodeInfoDiv) {
-      if (currentBooks.length > 0) {
-        let html = `<strong>📍 Existing books registered in this Fach (${currentBooks.length} items):</strong><ul style="margin: 5px 0 0 20px; padding: 0; font-size: 0.9rem;">`;
-        currentBooks.forEach(b => {
-          html += `<li>Pos ${b.position}: <b>${escapeHtml(b.title)}</b> (${escapeHtml(b.author || 'Unknown')})</li>`;
-        });
-        html += `</ul><small style="color: #666; display: block; margin-top: 5px;">💡 To insert a new book between existing books, specify the target position number. Subsequent books' positions will be automatically updated.</small>`;
-        barcodeInfoDiv.innerHTML = html;
-      } else {
-        barcodeInfoDiv.innerHTML = `<span style="color: #666; font-size: 0.9rem;">📍 No books registered in the selected room/shelf/layer. (Will be added as the first book.)</span>`;
-      }
-    }
-  } catch (err) {
-    console.error('Load Barcode Hierarchy Error:', err);
-  }
-}
-
-// Event handlers to update options dynamically when room/shelf/layer changes in barcode view
-bcRoomInput?.addEventListener('change', () => {
-  loadBarcodeHierarchyOptions();
-});
-bcShelfInput?.addEventListener('change', () => {
-  loadBarcodeHierarchyOptions();
-});
-bcLayerInput?.addEventListener('change', loadBarcodeHierarchyOptions);
-
-async function loadGalleryHierarchy() {
-  if (!galleryContainer) return;
-  galleryContainer.innerHTML = '<p style="color: #666;">Loading bookshelf gallery...</p>';
-
-  try {
-    const querySnapshot = await getDocs(collection(db, "books"));
-    const hierarchy = {};
-
-    querySnapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const room = data.room || 'Living Room';
-      const shelfName = data.shelfName || 'Bookcase A';
-      const layer = data.shelfLayer || 1;
-
-      if (!hierarchy[room]) hierarchy[room] = {};
-      if (!hierarchy[room][shelfName]) hierarchy[room][shelfName] = {};
-      if (!hierarchy[room][shelfName][layer]) {
-        hierarchy[room][shelfName][layer] = {
-          imageIds: new Set(),
-          booksCount: 0
-        };
-      }
-
-      if (data.localImageIds && Array.isArray(data.localImageIds)) {
-        data.localImageIds.forEach(id => hierarchy[room][shelfName][layer].imageIds.add(id));
-      } else if (data.localImageId) {
-        hierarchy[room][shelfName][layer].imageIds.add(data.localImageId);
-      }
-      hierarchy[room][shelfName][layer].booksCount++;
-    });
-
-    const rooms = Object.keys(hierarchy);
-    if (rooms.length === 0) {
-      galleryContainer.innerHTML = '<p style="color: #666;">No bookshelf records found in database yet.</p>';
-      return;
-    }
-
-    galleryContainer.innerHTML = '';
-
-    for (const room of rooms) {
-      const roomDiv = document.createElement('div');
-      roomDiv.className = 'card';
-      roomDiv.style.marginBottom = '20px';
-      roomDiv.style.backgroundColor = '#fdfdfe';
-      
-      let roomHtml = `<h3 style="margin-top: 0; color: #0d6efd; display: flex; align-items: center; gap: 8px;">🏠 Room: ${escapeHtml(room)}</h3>`;
-
-      for (const shelfName of Object.keys(hierarchy[room])) {
-        roomHtml += `
-          <div style="margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h4 style="margin: 0; color: #333; display: flex; align-items: center; gap: 6px;">
-                📚 Bookcase: ${escapeHtml(shelfName)}
-              </h4>
-              <button class="btn btn-danger btn-sm" onclick="deleteShelfScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}')">🗑️ Delete Entire Shelf</button>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-        `;
-
-        for (const layer of Object.keys(hierarchy[room][shelfName]).sort((a,b) => a - b)) {
-          const layerData = hierarchy[room][shelfName][layer];
-          const imageIdsArr = Array.from(layerData.imageIds);
-
-          roomHtml += `
-            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 10px 14px; border-radius: 6px; border: 1px solid #dee2e6;">
-              <div>
-                <strong style="font-size: 0.95rem; color: #495057;">Layer ${layer}</strong>
-                <span style="font-size: 0.85rem; color: #6c757d; margin-left: 8px;">(${layerData.booksCount} items)</span>
-              </div>
-              <div style="display: flex; gap: 6px;">
-          `;
-
-          if (imageIdsArr.length > 0) {
-            roomHtml += `<button class="btn btn-secondary btn-sm" onclick='viewLayerGalleryPhotos("${escapeHtml(room)}", "${escapeHtml(shelfName)}", ${layer}, ${JSON.stringify(imageIdsArr)})'>📷 View Photos (${imageIdsArr.length})</button>`;
-          } else {
-            roomHtml += `<span style="font-size: 0.8rem; color: #adb5bd; align-self: center;">No photo</span>`;
-          }
-
-          roomHtml += `
-                <button class="btn btn-danger btn-sm" onclick="deleteLayerScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}', ${layer})">🗑️ Layer</button>
-              </div>
-            </div>
-          `;
-        }
-
-        roomHtml += `</div></div>`;
-      }
-
-      roomDiv.innerHTML = roomHtml;
-      galleryContainer.appendChild(roomDiv);
-    }
-
-  } catch (error) {
-    console.error('Gallery Load Error:', error);
-    galleryContainer.innerHTML = '<p style="color: #d9534f;">Failed to load gallery hierarchy.</p>';
-  }
-}
-
-window.deleteShelfScope = async (room, shelfName) => {
-  if (confirm(`Are you sure you want to delete all books and photo records in room "${room}", bookshelf "${shelfName}"?`)) {
-    try {
-      const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelfName));
-      const querySnapshot = await getDocs(q);
-      const deletePromises = [];
-      querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
-
-      await Promise.all(deletePromises);
-      alert('Bookshelf deleted successfully.');
-      await updateRoomDropdown();
-      loadGalleryHierarchy();
-      loadSavedBooks();
-    } catch (error) {
-      console.error('Shelf Delete Error:', error);
-      alert('Failed to delete bookshelf.');
-    }
-  }
-};
-
-window.deleteLayerScope = async (room, shelfName, layer) => {
-  if (confirm(`Are you sure you want to delete records in room "${room}" - "${shelfName}", Layer ${layer}?`)) {
-    try {
-      const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelfName), where("shelfLayer", "==", Number(layer)));
-      const querySnapshot = await getDocs(q);
-      const deletePromises = [];
-      querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
-
-      await Promise.all(deletePromises);
-      alert('Layer data deleted successfully.');
-      await updateRoomDropdown();
-      loadGalleryHierarchy();
-      loadSavedBooks();
-    } catch (error) {
-      console.error('Layer Delete Error:', error);
-      alert('Failed to delete layer.');
-    }
-  }
-};
-
-window.viewLayerGalleryPhotos = async (room, shelfName, layer, imageIds) => {
-  const newWindow = window.open('', '_blank', 'width=800,height=900');
-  newWindow.document.write(`
-    <html>
-      <head>
-        <title>${room} - ${shelfName} (Layer ${layer}) Photos</title>
-        <style>
-          body { font-family: sans-serif; padding: 20px; background: #f4f6f9; color: #333; }
-          h2 { color: #0d6efd; margin-bottom: 5px; }
-          .subtitle { color: #666; margin-bottom: 20px; font-size: 0.95rem; }
-          .photo-container { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-          img { max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #ddd; display: block; margin-top: 10px; }
-          .shot-label { font-weight: bold; color: #495057; font-size: 1.1rem; }
-        </style>
-      </head>
-      <body>
-        <h2>📚 ${escapeHtml(shelfName)}</h2>
-        <div class="subtitle">📍 Room: ${escapeHtml(room)} | Layer ${layer} (Total Shots: ${imageIds.length})</div>
-        <div id="photos">Loading captured sequence...</div>
-      </body>
-    </html>
-  `);
-
-  let contentHtml = '';
-  for (let i = 0; i < imageIds.length; i++) {
-    const id = imageIds[i];
-    const file = await getImageLocally(id);
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      contentHtml += `
-        <div class="photo-container">
-          <div class="shot-label">📸 Shot Sequence #${i + 1}</div>
-          <img src="${imageUrl}" alt="Shelf Shot ${i + 1}"/>
-        </div>
-      `;
-    }
-  }
-
-  const photosDiv = newWindow.document.getElementById('photos');
-  if (photosDiv) {
-    photosDiv.innerHTML = contentHtml || '<p>No image files found locally.</p>';
-  }
-};
-
-// ISBN Barcode Add & Position Reordering Logic
-submitIsbnBtn?.addEventListener('click', async () => {
-  const isbn = isbnInput?.value.trim() || '';
-  if (!isbn) {
-    alert('Please enter an ISBN code.');
-    return;
-  }
-
-  const room = bcRoomInput?.value.trim() || 'Living Room';
-  const shelfName = bcShelfInput?.value.trim() || 'Bookcase A';
-  const shelfLayer = Number(bcLayerInput?.value) || 1;
-  const targetPosition = Number(bcPositionInput?.value) || 1;
-
-  try {
-    submitIsbnBtn.disabled = true;
-    submitIsbnBtn.textContent = 'Fetching...';
-
-    const bookInfo = await fetchBookByISBN(isbn);
-
-    // 1. Fetch existing books in the target layer (Fach)
-    const q = query(
-      collection(db, "books"),
-      where("room", "==", room),
-      where("shelfName", "==", shelfName),
-      where("shelfLayer", "==", shelfLayer)
-    );
-    const querySnapshot = await getDocs(q);
-    const existingBooks = [];
-    querySnapshot.forEach(docSnap => {
-      existingBooks.push({ id: docSnap.id, ...docSnap.data() });
-    });
-
-    // 2. Sort existing books by position
-    existingBooks.sort((a, b) => (a.position || 0) - (b.position || 0));
-
-    const newBookData = {
-      title: bookInfo.title,
-      author: bookInfo.author || 'Unknown',
-      isbn: bookInfo.isbn || isbn,
-      room: room,
-      shelfName: shelfName,
-      shelfLayer: shelfLayer,
-      createdAt: serverTimestamp()
-    };
-
-    // 3. Insert the new book at the target position and construct final array
-    let inserted = false;
-    const finalBooksList = [];
-    
-    for (const b of existingBooks) {
-      if (!inserted && (b.position || 1) >= targetPosition) {
-        finalBooksList.push({ ...newBookData, position: targetPosition });
-        inserted = true;
-      }
-      finalBooksList.push(b);
-    }
-    if (!inserted) {
-      finalBooksList.push({ ...newBookData, position: targetPosition });
-    }
-
-    // 4. Recalculate position numbers sequentially from 1 and update DB
-    for (let i = 0; i < finalBooksList.length; i++) {
-      const item = finalBooksList[i];
-      const newPos = i + 1;
-      if (item.id) {
-        await updateDoc(doc(db, "books", item.id), { position: newPos });
-      } else {
-        await addDoc(collection(db, "books"), {
-          ...item,
-          position: newPos,
-          createdAt: serverTimestamp()
-        });
-      }
-    }
-
-    alert(`Successfully added & reordered:\n${bookInfo.title} (${bookInfo.author})`);
-    if (isbnInput) isbnInput.value = '';
-    if (bcPositionInput) bcPositionInput.value = targetPosition + 1;
-    await updateRoomDropdown();
-    loadSavedBooks();
-    await loadBarcodeHierarchyOptions();
-  } catch (error) {
-    console.error('ISBN Add & Reorder Error:', error);
-    alert('Failed to fetch or save book via ISBN.');
-  } finally {
-    submitIsbnBtn.disabled = false;
-    submitIsbnBtn.textContent = '➕ Add Book';
-  }
-});
-
-async function updateRoomDropdown() {
-  if (!filterRoom) return;
-  const t = i18n[currentLang] || i18n['en'];
-  try {
-    const querySnapshot = await getDocs(collection(db, "books"));
-    const rooms = new Set();
-    querySnapshot.forEach(docSnap => {
-      if (docSnap.data().room) rooms.add(docSnap.data().room);
-    });
-
-    filterRoom.innerHTML = `<option value="ALL">${t.allRooms}</option>`;
-    rooms.forEach(room => {
-      filterRoom.innerHTML += `<option value="${room}">${room}</option>`;
-    });
-  } catch (error) {
-    console.error('Room List Error:', error);
-  }
-}
-
-async function updateShelfDropdown(room) {
-  if (!filterShelf) return;
-  const t = i18n[currentLang] || i18n['en'];
-  try {
-    const q = query(collection(db, "books"), where("room", "==", room));
-    const querySnapshot = await getDocs(q);
-    const shelves = new Set();
-    
-    querySnapshot.forEach(docSnap => {
-      if (docSnap.data().shelfName) shelves.add(docSnap.data().shelfName);
-    });
-
-    filterShelf.innerHTML = `<option value="ALL">${t.allShelves}</option>`;
-    shelves.forEach(shelf => {
-      filterShelf.innerHTML += `<option value="${shelf}">${shelf}</option>`;
-    });
-  } catch (error) {
-    console.error('Shelf List Error:', error);
-  }
-}
-
-async function updateLayerFilterOptions(room, shelf) {
-  if (!filterLayer) return;
-  const t = i18n[currentLang] || i18n['en'];
-  try {
-    const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelf));
-    const querySnapshot = await getDocs(q);
-    
-    let maxLayer = 1;
-    querySnapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      if (data.totalLayers && data.totalLayers > maxLayer) maxLayer = data.totalLayers;
-      else if (data.shelfLayer && data.shelfLayer > maxLayer) maxLayer = data.shelfLayer;
-    });
-
-    filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
-    for (let i = 1; i <= maxLayer; i++) {
-      filterLayer.innerHTML += `<option value="${i}">${t.layerPrefix} ${i}</option>`;
-    }
-  } catch (error) {
-    console.error('Layer Filter Error:', error);
-  }
-}
-
-filterRoom?.addEventListener('change', async () => {
-  const t = i18n[currentLang] || i18n['en'];
-  const selectedRoom = filterRoom.value;
-  if (selectedRoom === 'ALL') {
-    if (filterShelf) {
-      filterShelf.innerHTML = `<option value="ALL">${t.allShelves}</option>`;
-      filterShelf.disabled = true;
-    }
-    if (filterLayer) {
-      filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
-      filterLayer.disabled = true;
-    }
-  } else {
-    if (filterShelf) filterShelf.disabled = false;
-    await updateShelfDropdown(selectedRoom);
-  }
-  if (filterLayer) filterLayer.value = 'ALL';
-  loadSavedBooks();
-});
-
-filterShelf?.addEventListener('change', async () => {
-  const t = i18n[currentLang] || i18n['en'];
-  const selectedRoom = filterRoom ? filterRoom.value : 'ALL';
-  const selectedShelf = filterShelf.value;
-
-  if (selectedShelf === 'ALL') {
-    if (filterLayer) {
-      filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
-      filterLayer.disabled = true;
-    }
-  } else {
-    if (filterLayer) filterLayer.disabled = false;
-    await updateLayerFilterOptions(selectedRoom, selectedShelf);
-  }
-  loadSavedBooks();
-});
-
-filterLayer?.addEventListener('change', loadSavedBooks);
-searchInput?.addEventListener('input', loadSavedBooks);
-
-async function loadSavedBooks() {
-  if (!savedBookList) return;
-  const t = i18n[currentLang] || i18n['en'];
-  savedBookList.innerHTML = '<small>Loading books...</small>';
-  try {
-    const room = filterRoom ? filterRoom.value : 'ALL';
-    const shelf = filterShelf ? filterShelf.value : 'ALL';
-    const layer = filterLayer ? filterLayer.value : 'ALL';
-    const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
-
-    let q;
-    if (room === 'ALL') {
-      q = query(collection(db, "books"), orderBy("createdAt", "desc"));
-    } else {
-      let conditions = [where("room", "==", room)];
-      if (shelf !== 'ALL') conditions.push(where("shelfName", "==", shelf));
-      if (layer !== 'ALL') conditions.push(where("shelfLayer", "==", Number(layer)));
-      q = query(collection(db, "books"), ...conditions);
-    }
-
-    const querySnapshot = await getDocs(q);
-    savedBookList.innerHTML = '';
-
-    let hasResults = false;
-
-    querySnapshot.forEach((docSnap) => {
-      const book = docSnap.data();
-      const bookId = docSnap.id;
-
-      const titleMatch = book.title && book.title.toLowerCase().includes(keyword);
-      const authorMatch = book.author && book.author.toLowerCase().includes(keyword);
-
-      if (keyword !== '' && !titleMatch && !authorMatch) {
-        return;
-      }
-
-      hasResults = true;
-
-      let photoBtnHtml = '';
-      if (book.localImageIds && book.localImageIds.length > 0) {
-        photoBtnHtml = `<button class="btn btn-secondary btn-sm" onclick="viewLocalImages(${JSON.stringify(book.localImageIds)})">📷 View Photos (${book.localImageIds.length})</button>`;
-      } else if (book.localImageId) {
-        photoBtnHtml = `<button class="btn btn-secondary btn-sm" onclick="viewLocalImage(${book.localImageId})">📷 View Photo</button>`;
-      }
-
-      const item = document.createElement('div');
-      item.className = 'book-item';
-      item.innerHTML = `
-        <div class="book-title">${escapeHtml(book.title)}</div>
-        <div class="book-meta">
-          Author: ${escapeHtml(book.author)} ${book.isbn ? `<br>ISBN: ${escapeHtml(book.isbn)}` : ''}<br>
-          📍 <strong>${escapeHtml(book.room)}</strong> ➔ ${escapeHtml(book.shelfName)} (${t.layerPrefix} ${book.shelfLayer}, Pos. ${book.position})
-        </div>
-        <div class="action-btns" style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
-          ${photoBtnHtml}
-          <button class="btn btn-secondary btn-sm" onclick="openEditModal(
-            '${bookId}', 
-            '${escapeHtml(book.title)}', 
-            '${escapeHtml(book.author || '')}', 
-            '${escapeHtml(book.room || '')}', 
-            '${escapeHtml(book.shelfName || '')}', 
-            ${book.shelfLayer || 1}, 
-            ${book.position || 1},
-            '${book.isbn || ''}'
-          )">✏️ Edit / ISBN</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteBook('${bookId}', '${escapeHtml(book.title)}')">🗑️ Delete</button>
-        </div>
-      `;
-      savedBookList.appendChild(item);
-    });
-
-    if (!hasResults) {
-      savedBookList.innerHTML = '<small>No matching books found.</small>';
-    }
-  } catch (error) {
-    console.error('Load Error:', error);
-    savedBookList.innerHTML = '<small>Failed to load books.</small>';
-  }
-}
-
-window.viewLocalImage = async (imageId) => {
-  const file = await getImageLocally(imageId);
-  if (file) {
-    const imageUrl = URL.createObjectURL(file);
-    const newWindow = window.open();
-    newWindow.document.write(`<img src="${imageUrl}" style="max-width:100%;" alt="Shelf Photo"/>`);
-  } else {
-    alert("Local image not found on this device.");
-  }
-};
-
-window.viewLocalImages = async (imageIds) => {
-  const newWindow = window.open();
-  newWindow.document.write(`<h3>Shelf Segment Photos</h3>`);
-  for (const id of imageIds) {
-    const file = await getImageLocally(id);
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      newWindow.document.write(`<div style="margin-bottom:15px;"><img src="${imageUrl}" style="max-width:100%; border:1px solid #ccc;" alt="Segment Photo"/></div>`);
-    }
-  }
-};
-
-window.deleteBook = async (bookId, title) => {
-  const t = i18n[currentLang] || i18n['en'];
-  if (confirm(`${t.confirmDeleteSingle}"${title}"`)) {
-    try {
-      await deleteDoc(doc(db, "books", bookId));
-      alert(t.alertSuccessDelete);
-      await updateRoomDropdown();
-      loadSavedBooks();
-    } catch (error) {
-      alert('Failed to delete.');
-    }
-  }
-};
-
-window.openEditModal = (bookId, title, author, room, shelf, layer, position, isbn) => {
+function openEditModal(bookId, title, author, room, shelf, layer, position, isbn) {
   currentEditingBookId = bookId;
   
   if (editTitleInput) editTitleInput.value = title;
@@ -1060,7 +397,7 @@ window.openEditModal = (bookId, title, author, room, shelf, layer, position, isb
   if (editPositionInput) editPositionInput.value = position;
 
   if (editModal) editModal.style.display = 'flex';
-};
+}
 
 cancelEditBtn?.addEventListener('click', () => {
   if (editModal) editModal.style.display = 'none';
