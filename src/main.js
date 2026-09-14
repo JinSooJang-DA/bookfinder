@@ -434,7 +434,7 @@ function stopScanner() {
   if (stopLiveScanBtn) stopLiveScanBtn.style.display = 'none';
 }
 
-// Load Existing Bookshelf and Position Information for Barcode View
+// Load Existing Bookshelf and Position Information for Barcode View (Dropdown Support)
 async function loadBarcodeHierarchyOptions() {
   try {
     const querySnapshot = await getDocs(collection(db, "books"));
@@ -457,23 +457,64 @@ async function loadBarcodeHierarchyOptions() {
       booksByLocation[key].push(data);
     });
 
-    const defaultRoom = bcRoomInput?.value.trim() || Array.from(rooms)[0] || 'Living Room';
-    const defaultShelf = bcShelfInput?.value.trim() || 'Bookcase A';
-    const defaultLayer = Number(bcLayerInput?.value) || 1;
-
-    if (bcRoomInput && !bcRoomInput.value && rooms.size > 0) {
-      bcRoomInput.value = Array.from(rooms)[0];
+    // Populate Room Select Options
+    if (bcRoomInput) {
+      const currentRoomVal = bcRoomInput.value;
+      bcRoomInput.innerHTML = '';
+      rooms.forEach(room => {
+        const opt = document.createElement('option');
+        opt.value = room;
+        opt.textContent = room;
+        bcRoomInput.appendChild(opt);
+      });
+      if (rooms.size === 0) {
+        const opt = document.createElement('option');
+        opt.value = 'Living Room';
+        opt.textContent = 'Living Room';
+        bcRoomInput.appendChild(opt);
+      }
+      if (currentRoomVal && (rooms.has(currentRoomVal) || currentRoomVal === 'Living Room')) {
+        bcRoomInput.value = currentRoomVal;
+      } else if (rooms.size > 0) {
+        bcRoomInput.value = Array.from(rooms)[0];
+      }
     }
-    if (bcShelfInput && !bcShelfInput.value && shelvesByRoom[defaultRoom]?.size > 0) {
-      bcShelfInput.value = Array.from(shelvesByRoom[defaultRoom])[0];
+
+    const selectedRoom = bcRoomInput?.value || 'Living Room';
+
+    // Populate Shelf Select Options based on selected Room
+    if (bcShelfInput) {
+      const currentShelfVal = bcShelfInput.value;
+      bcShelfInput.innerHTML = '';
+      const shelves = shelvesByRoom[selectedRoom] || new Set();
+      shelves.forEach(shelf => {
+        const opt = document.createElement('option');
+        opt.value = shelf;
+        opt.textContent = shelf;
+        bcShelfInput.appendChild(opt);
+      });
+      if (shelves.size === 0) {
+        const opt = document.createElement('option');
+        opt.value = 'Bookcase A';
+        opt.textContent = 'Bookcase A';
+        bcShelfInput.appendChild(opt);
+      }
+      if (currentShelfVal && (shelves.has(currentShelfVal) || currentShelfVal === 'Bookcase A')) {
+        bcShelfInput.value = currentShelfVal;
+      } else if (shelves.size > 0) {
+        bcShelfInput.value = Array.from(shelves)[0];
+      }
     }
 
-    const currentKey = `${bcRoomInput?.value || defaultRoom}_${bcShelfInput?.value || defaultShelf}_${Number(bcLayerInput?.value) || defaultLayer}`;
+    const selectedShelf = bcShelfInput?.value || 'Bookcase A';
+    const selectedLayer = Number(bcLayerInput?.value) || 1;
+
+    const currentKey = `${selectedRoom}_${selectedShelf}_${selectedLayer}`;
     const currentBooks = booksByLocation[currentKey] || [];
     currentBooks.sort((a, b) => (a.position || 0) - (b.position || 0));
 
     // Automatically suggest the next position
-    if (bcPositionInput && !bcPositionInput.value) {
+    if (bcPositionInput) {
       bcPositionInput.value = currentBooks.length + 1;
     }
 
@@ -506,8 +547,13 @@ async function loadBarcodeHierarchyOptions() {
   }
 }
 
-bcRoomInput?.addEventListener('input', loadBarcodeHierarchyOptions);
-bcShelfInput?.addEventListener('input', loadBarcodeHierarchyOptions);
+// Event handlers to update options dynamically when room/shelf/layer changes in barcode view
+bcRoomInput?.addEventListener('change', () => {
+  loadBarcodeHierarchyOptions();
+});
+bcShelfInput?.addEventListener('change', () => {
+  loadBarcodeHierarchyOptions();
+});
 bcLayerInput?.addEventListener('change', loadBarcodeHierarchyOptions);
 
 async function loadGalleryHierarchy() {
