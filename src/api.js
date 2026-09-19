@@ -13,7 +13,7 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
  */
 export async function analyzeBookshelfImage(base64Image, targetLang = 'en') {
   if (!GEMINI_API_KEY) {
-    console.error("Gemini API Key가 설정되지 않았습니다. GitHub Secrets(VITE_GEMINI_API_KEY)를 확인해주세요.");
+    console.error("Gemini API Key가 설정되지 않았습니다. GitHub Secrets를 확인해주세요.");
     throw new Error("Gemini API Key가 누락되었습니다.");
   }
 
@@ -31,7 +31,7 @@ Do not include markdown code block tags (\`\`\`json) or any extra conversational
 `;
 
   try {
-    // Gemini 3.6 Flash 엔드포인트 호출
+    // 말씀하신 Gemini 3.6 Flash 모델로 정확히 고정
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
@@ -68,7 +68,7 @@ Do not include markdown code block tags (\`\`\`json) or any extra conversational
 
     let responseText = result.candidates[0].content.parts[0].text.trim();
     
-    // 마크다운 문법(```json ... ```) 제거 처리
+    // 마크다운 문법(```json ... ```) 제거 처리로 파싱 에러 방지
     responseText = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
 
     const books = JSON.parse(responseText);
