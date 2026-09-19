@@ -4,7 +4,7 @@ export const i18n = {
     appTitle: "📚 Bookshelf Scanner",
     mainHeading: "📚 Bookshelf Scanner",
     lblUiLang: "🌐 Language",
-    
+
     // 메인 대시보드 메뉴
     menuScanTitle: "📖 Book Input",
     menuScanDesc: "(Scan & Register)",
@@ -107,13 +107,22 @@ export const i18n = {
     layerDeleteSuccess: "Layer data deleted successfully.",
     layerDeleteFail: "Failed to delete layer.",
     noPhoto: "No photo",
-    noImageLocal: "No image files found locally."
+    noImageLocal: "No image files found locally.",
+
+    noMissingIsbnFound: "All registered books already have ISBNs.",
+    confirmAutoFillIsbn: " books do not have ISBNs. Do you want to automatically search and fill them in?",
+    searchingIsbn: "Searching ISBN...",
+    isbnFillComplete: "ISBN Auto-Fill Completed!",
+    failAutoFillIsbn: "Failed to auto-fill ISBNs.",
+    btnAutoFillIsbn: "🔍 Auto-Fill Missing ISBNs",
+    success: "Success",
+    failed: "Failed/Not found"
   },
   de: {
     appTitle: "📚 Bücherregal-Scanner",
     mainHeading: "📚 Bücherregal-Scanner",
     lblUiLang: "🌐 Sprache",
-    
+
     // 메인 대시보드 메뉴
     menuScanTitle: "📖 Bücher erfassen",
     menuScanDesc: "(Scannen & Registrieren)",
@@ -205,6 +214,15 @@ export const i18n = {
     failSaveBook: "Speichern der Bücher fehlgeschlagen.",
     failAnalyzeImage: "Bildanalyse fehlgeschlagen.",
 
+    noMissingIsbnFound: "Alle registrierten Bücher haben bereits eine ISBN.",
+    confirmAutoFillIsbn: " Bücher haben keine ISBN. Möchten Sie diese automatisch suchen und ergänzen?",
+    searchingIsbn: "ISBN wird gesucht...",
+    isbnFillComplete: "ISBN-Auto-Ausfüllen abgeschlossen!",
+    failAutoFillIsbn: "Fehler beim automatischen Ausfüllen der ISBNs.",
+    btnAutoFillIsbn: "🔍 Fehlende ISBNs ergänzen",
+    success: "Erfolgreich",
+    failed: "Fehlgeschlagen/Nicht gefunden",
+
     // 갤러리 및 삭제 관련
     galleryLoading: "Regalgalerie wird geladen...",
     galleryEmpty: "Noch keine Regaleinträge in der Datenbank gefunden.",
@@ -222,7 +240,7 @@ export const i18n = {
     appTitle: "📚 책장 스캐너",
     mainHeading: "📚 책장 스캐너",
     lblUiLang: "🌐 언어 설정",
-    
+
     // 메인 대시보드 메뉴
     menuScanTitle: "📖 책 입력",
     menuScanDesc: "(스캔 및 등록)",
@@ -313,6 +331,15 @@ export const i18n = {
     failUpdateBook: "도서 정보 업데이트에 실패했습니다.",
     failSaveBook: "도서 저장에 실패했습니다.",
     failAnalyzeImage: "이미지 분석에 실패했습니다.",
+
+    noMissingIsbnFound: "ISBN이 누락된 도서가 없습니다. 모두 등록되어 있습니다.",
+    confirmAutoFillIsbn: "권의 도서에 ISBN이 없습니다. 자동으로 검색하여 채워 넣으시겠습니까?",
+    searchingIsbn: "ISBN 검색 중...",
+    isbnFillComplete: "ISBN 자동 채우기 작업이 완료되었습니다!",
+    failAutoFillIsbn: "ISBN 자동 채우기 작업 중 오류가 발생했습니다.",
+    btnAutoFillIsbn: "🔍 누락된 ISBN 일괄 자동 채우기",
+    success: "성공",
+    failed: "실패/없음",
 
     // 갤러리 및 삭제 관련
     galleryLoading: "책장 갤러리를 불러오는 중...",

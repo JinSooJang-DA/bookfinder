@@ -57,3 +57,39 @@ export async function fetchBookByISBN(isbn) {
     isbn: cleanIsbn
   };
 }
+
+export async function fetchISBNByTitleAuthor(title, author = '') {
+  if (!title) return null;
+
+  // 특수문자 제거 및 쿼리 구성
+  const cleanTitle = title.replace(/[[\]()]/g, '').trim();
+  const cleanAuthor = author && author !== 'Unknown' ? author.replace(/[[\]()]/g, '').trim() : '';
+  
+  let query = `intitle:${encodeURIComponent(cleanTitle)}`;
+  if (cleanAuthor) {
+    query += `+inauthor:${encodeURIComponent(cleanAuthor)}`;
+  }
+
+  try {
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=3`);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (!data.items || data.items.length === 0) return null;
+
+    // 검색 결과 중 ISBN_13 또는 ISBN_10 추출
+    for (const item of data.items) {
+      const identifiers = item.volumeInfo?.industryIdentifiers || [];
+      const isbnObj = identifiers.find(i => i.type === 'ISBN_13') || identifiers.find(i => i.type === 'ISBN_10');
+      
+      if (isbnObj && isbnObj.identifier) {
+        // 숫자 및 X만 정제하여 반환
+        return isbnObj.identifier.replace(/[^0-9X]/gi, '');
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error(`ISBN search failed for "${title}":`, error);
+    return null;
+  }
+}
