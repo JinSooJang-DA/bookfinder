@@ -6,10 +6,8 @@ import {
 } from 'firebase/firestore';
 import { i18n } from './i18n.js';
 import { escapeHtml } from './ui.js';
-import { getImageLocally } from './storage.js';
 
 let filterRoom, filterShelf, filterLayer, searchInput, savedBookList;
-let currentLangRef = 'en';
 
 export function initBookListModule(deps) {
   filterRoom = document.getElementById('filterRoom');
@@ -27,10 +25,10 @@ export function initBookListModule(deps) {
   filterLayer?.addEventListener('change', loadSavedBooks);
   searchInput?.addEventListener('input', loadSavedBooks);
 
-  // 전역 함수 등록 (HTML 문자열 템플릿의 onclick에서 호출하기 위함)
+  // 전역 함수 등록
   window.deleteBook = deleteBook;
-  window.viewLocalImage = viewLocalImage;
-  window.viewLocalImages = viewLocalImages;
+  window.viewCloudImage = viewCloudImage;
+  window.viewCloudImages = viewCloudImages;
 }
 
 function getLang() {
@@ -184,10 +182,10 @@ export async function loadSavedBooks() {
       hasResults = true;
 
       let photoBtnHtml = '';
-      if (book.localImageIds && book.localImageIds.length > 0) {
-        photoBtnHtml = `<button class="btn btn-secondary btn-sm" onclick="viewLocalImages(${JSON.stringify(book.localImageIds)})">📷 View Photos (${book.localImageIds.length})</button>`;
-      } else if (book.localImageId) {
-        photoBtnHtml = `<button class="btn btn-secondary btn-sm" onclick="viewLocalImage(${book.localImageId})">📷 View Photo</button>`;
+      if (book.imageUrls && book.imageUrls.length > 0) {
+        photoBtnHtml = `<button class="btn btn-secondary btn-sm" onclick='viewCloudImages(${JSON.stringify(book.imageUrls)})'>📷 View Photos (${book.imageUrls.length})</button>`;
+      } else if (book.imageUrl) {
+        photoBtnHtml = `<button class="btn btn-secondary btn-sm" onclick="viewCloudImage('${book.imageUrl}')">📷 View Photo</button>`;
       }
 
       const item = document.createElement('div');
@@ -205,7 +203,6 @@ export async function loadSavedBooks() {
         </div>
       `;
       
-      // 모달 오픈 이벤트 바인딩 (클로저 오염 방지)
       const editBtn = item.querySelector(`#edit-btn-${bookId}`);
       editBtn?.addEventListener('click', () => {
         if (window._bookListDeps?.openEditModalCallback) {
@@ -234,26 +231,20 @@ export async function loadSavedBooks() {
   }
 }
 
-async function viewLocalImage(imageId) {
-  const file = await getImageLocally(imageId);
-  if (file) {
-    const imageUrl = URL.createObjectURL(file);
+function viewCloudImage(imageUrl) {
+  if (imageUrl) {
     const newWindow = window.open();
     newWindow.document.write(`<img src="${imageUrl}" style="max-width:100%;" alt="Shelf Photo"/>`);
   } else {
-    alert("Local image not found on this device.");
+    alert("Image URL not found.");
   }
 }
 
-async function viewLocalImages(imageIds) {
+function viewCloudImages(imageUrls) {
   const newWindow = window.open();
   newWindow.document.write(`<h3>Shelf Segment Photos</h3>`);
-  for (const id of imageIds) {
-    const file = await getImageLocally(id);
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      newWindow.document.write(`<div style="margin-bottom:15px;"><img src="${imageUrl}" style="max-width:100%; border:1px solid #ccc;" alt="Segment Photo"/></div>`);
-    }
+  for (const url of imageUrls) {
+    newWindow.document.write(`<div style="margin-bottom:15px;"><img src="${url}" style="max-width:100%; border:1px solid #ccc;" alt="Segment Photo"/></div>`);
   }
 }
 

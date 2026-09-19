@@ -2,7 +2,6 @@
 import { db } from './firebase.js';
 import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { escapeHtml } from './ui.js';
-import { getImageLocally } from './storage.js';
 import { updateRoomDropdown, loadSavedBooks } from './booklist.js';
 
 let galleryContainer = null;
@@ -29,15 +28,16 @@ export async function loadGalleryHierarchy() {
       if (!hierarchy[room][shelfName]) hierarchy[room][shelfName] = {};
       if (!hierarchy[room][shelfName][layer]) {
         hierarchy[room][shelfName][layer] = {
-          imageIds: new Set(),
+          imageUrls: new Set(),
           booksCount: 0
         };
       }
 
-      if (data.localImageIds && Array.isArray(data.localImageIds)) {
-        data.localImageIds.forEach(id => hierarchy[room][shelfName][layer].imageIds.add(id));
-      } else if (data.localImageId) {
-        hierarchy[room][shelfName][layer].imageIds.add(data.localImageId);
+      // ImgBB URL 배열 (imageUrls) 및 기존 구버전 키 호환
+      if (data.imageUrls && Array.isArray(data.imageUrls)) {
+        data.imageUrls.forEach(url => hierarchy[room][shelfName][layer].imageUrls.add(url));
+      } else if (data.imageUrl) {
+        hierarchy[room][shelfName][layer].imageUrls.add(data.imageUrl);
       }
       hierarchy[room][shelfName][layer].booksCount++;
     });
@@ -72,7 +72,7 @@ export async function loadGalleryHierarchy() {
 
         for (const layer of Object.keys(hierarchy[room][shelfName]).sort((a,b) => a - b)) {
           const layerData = hierarchy[room][shelfName][layer];
-          const imageIdsArr = Array.from(layerData.imageIds);
+          const imageUrlsArr = Array.from(layerData.imageUrls);
 
           roomHtml += `
             <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 10px 14px; border-radius: 6px; border: 1px solid #dee2e6;">
@@ -83,8 +83,8 @@ export async function loadGalleryHierarchy() {
               <div style="display: flex; gap: 6px;">
           `;
 
-          if (imageIdsArr.length > 0) {
-            roomHtml += `<button class="btn btn-secondary btn-sm" onclick='window.viewLayerGalleryPhotos("${escapeHtml(room)}", "${escapeHtml(shelfName)}", ${layer}, ${JSON.stringify(imageIdsArr)})'>📷 View Photos (${imageIdsArr.length})</button>`;
+          if (imageUrlsArr.length > 0) {
+            roomHtml += `<button class="btn btn-secondary btn-sm" onclick='window.viewLayerGalleryPhotos("${escapeHtml(room)}", "${escapeHtml(shelfName)}", ${layer}, ${JSON.stringify(imageUrlsArr)})'>📷 View Photos (${imageUrlsArr.length})</button>`;
           } else {
             roomHtml += `<span style="font-size: 0.8rem; color: #adb5bd; align-self: center;">No photo</span>`;
           }
@@ -150,7 +150,8 @@ window.deleteLayerScope = async (room, shelfName, layer) => {
   }
 };
 
-window.viewLayerGalleryPhotos = async (room, shelfName, layer, imageIds) => {
+// ImgBB 클라우드 URL로 공유 갤러리 창 띄우기
+window.viewLayerGalleryPhotos = async (room, shelfName, layer, imageUrls) => {
   const newWindow = window.open('', '_blank', 'width=800,height=900');
   newWindow.document.write(`
     <html>
@@ -167,29 +168,27 @@ window.viewLayerGalleryPhotos = async (room, shelfName, layer, imageIds) => {
       </head>
       <body>
         <h2>📚 ${escapeHtml(shelfName)}</h2>
-        <div class="subtitle">📍 Room: ${escapeHtml(room)} | Layer ${layer} (Total Shots: ${imageIds.length})</div>
-        <div id="photos">Loading captured sequence...</div>
+        <div class="subtitle">📍 Room: ${escapeHtml(room)} | Layer ${layer} (Total Shots: ${imageUrls.length})</div>
+        <div id="photos"></div>
       </body>
     </html>
   `);
 
   let contentHtml = '';
-  for (let i = 0; i < imageIds.length; i++) {
-    const id = imageIds[i];
-    const file = await getImageLocally(id);
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      contentHtml += `
-        <div class="photo-container">
-          <div class="shot-label">📸 Shot Sequence #${i + 1}</div>
-          <img src="${imageUrl}" alt="Shelf Shot ${i + 1}"/>
-        </div>
-      `;
-    }
+  for (let i = 0; i < imageUrls.length; i++) {
+    const url = imageUrls[i];
+    contentHtml += `
+      <div class="photo-container">
+        <div class="shot-label">📸 Shot Sequence #${i + 1}</div>
+        <a href="${url}" target="_blank">
+          <img src="${url}" alt="Shelf Shot ${i + 1}"/>
+        </a>
+      </div>
+    `;
   }
 
   const photosDiv = newWindow.document.getElementById('photos');
   if (photosDiv) {
-    photosDiv.innerHTML = contentHtml || '<p>No image files found locally.</p>';
+    photosDiv.innerHTML = contentHtml || '<p>No image files found.</p>';
   }
 };

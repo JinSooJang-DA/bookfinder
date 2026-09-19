@@ -1,80 +1,49 @@
 // src/api.js
-import { GoogleGenAI } from '@google/genai';
 
-export function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-    reader.readAsDataURL(file);
-  });
-}
-
-export async function analyzeBookshelfImage(file, selectedLang, apiKey) {
-  const ai = new GoogleGenAI({ apiKey });
-  const base64Image = await fileToBase64(file);
-
-  const langInstruction = selectedLang === 'Original'
-    ? 'Keep the exact original language and text as printed on the book spines.'
-    : `Translate and output all book titles and authors into: ${selectedLang}.`;
-
-  const prompt = `
-  Analyze this photo of a bookshelf layer.
-  Identify book spines from LEFT to RIGHT.
-  ${langInstruction}
-
-  Respond EXCLUSIVELY in valid JSON format as shown below:
-  [
-    {
-      "position": 1,
-      "title": "Book Title",
-      "author": "Author Name",
-      "language": "${selectedLang.toLowerCase()}"
-    }
-  ]
-  `;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.6-flash',
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: file.type, data: base64Image.split(',')[1] } }
-        ]
-      }
-    ]
-  });
-
-  const cleanJson = response.text.replace(/```json|```/g, '').trim();
-  return JSON.parse(cleanJson);
-}
-
+/**
+ * Open Library API 또는 외부 API를 이용해 ISBN 기반 도서 정보 검색
+ * @param {string} isbn - 조회할 ISBN 번호
+ * @returns {Promise<{title: string, author: string, isbn: string}>}
+ */
 export async function fetchBookByISBN(isbn) {
   const cleanIsbn = isbn.replace(/[^0-9X]/gi, '');
-  const url = `https://openlibrary.org/isbn/${cleanIsbn}.json`;
-  
+  if (!cleanIsbn) {
+    throw new Error('Invalid ISBN format.');
+  }
+
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Book not found with this ISBN');
+    const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
     const data = await response.json();
-    
-    let title = data.title || 'Unknown Title';
-    let author = 'Unknown Author';
+    const key = `ISBN:${cleanIsbn}`;
 
-    if (data.authors && data.authors.length > 0) {
-      const authorKey = data.authors[0].key;
-      const authorRes = await fetch(`https://openlibrary.org${authorKey}.json`);
-      if (authorRes.ok) {
-        const authorData = await authorRes.json();
-        author = authorData.name || 'Unknown Author';
+    if (data && data[key]) {
+      const bookData = data[key];
+      const title = bookData.title || `ISBN Book (${cleanIsbn})`;
+      
+      let author = 'Unknown';
+      if (bookData.authors && bookData.authors.length > 0) {
+        author = bookData.authors.map(a => a.name).join(', ');
       }
-    }
 
-    return { title, author, isbn: cleanIsbn };
+      return {
+        title: title,
+        author: author,
+        isbn: cleanIsbn
+      };
+    } else {
+      // 대체 책 정보 구조 반환
+      return {
+        title: `Book (${cleanIsbn})`,
+        author: 'Unknown',
+        isbn: cleanIsbn
+      };
+    }
   } catch (error) {
-    console.error('ISBN Fetch Error:', error);
-    throw error;
+    console.error('Fetch Book By ISBN Error:', error);
+    return {
+      title: `Book (${cleanIsbn})`,
+      author: 'Unknown',
+      isbn: cleanIsbn
+    };
   }
 }
