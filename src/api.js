@@ -20,6 +20,13 @@ export async function analyzeBookshelfImage(base64Image, targetLang = 'en') {
   });
 
   const data = await response.json();
+
+  // 구글 API 응답 에러 시 콘솔에 상세 정보 출력
+  if (!response.ok || data.error) {
+    console.error("Gemini API Error Detail:", data.error || data);
+    throw new Error(data.error?.message || `HTTP ${response.status}`);
+  }
+
   let text = data.candidates[0].content.parts[0].text.trim();
   text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
   
