@@ -9,7 +9,7 @@ const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY'; // 👈 여기에 사용하시는 Im
  * @returns {Promise<string>} - ImgBB에서 반환된 디스플레이용 이미지 URL
  */
 export async function saveImageToImgBB(imageBlob) {
-  if (!IMGBB_API_KEY || IMGBB_API_KEY === '6738d40319102d0cf98d9e3e0f6594f4') {
+  if (!IMGBB_API_KEY || IMGBB_API_KEY === 'adfede58cdda859e14bc443b22b6aab0') {
     console.warn("ImgBB API Key가 설정되지 않았습니다. API 키를 확인해주세요.");
   }
 
