@@ -14,7 +14,6 @@ let startLiveScanBtn, stopLiveScanBtn;
 let html5QrCode = null;
 
 export function initBarcodeModule(deps) {
-  // 메인에서 전달받거나 직접 DOM을 참조합니다.
   barcodeView = document.getElementById('barcodeView');
   submitIsbnBtn = document.getElementById('submitIsbnBtn');
   isbnInput = document.getElementById('isbnInput');
@@ -25,7 +24,6 @@ export function initBarcodeModule(deps) {
   startLiveScanBtn = document.getElementById('startLiveScanBtn');
   stopLiveScanBtn = document.getElementById('stopLiveScanBtn');
 
-  // 이벤트 리스너 바인딩
   bcRoomInput?.addEventListener('change', loadBarcodeHierarchyOptions);
   bcShelfInput?.addEventListener('change', loadBarcodeHierarchyOptions);
   bcLayerInput?.addEventListener('change', loadBarcodeHierarchyOptions);
@@ -41,7 +39,7 @@ export function initBarcodeModule(deps) {
   window._barcodeDeps = { updateRoomDropdown, loadSavedBooks };
 }
 
-// 실시간 바코드 스캐너 시작
+// Live Barcode Scanner Start
 async function startScanner() {
   const readerDiv = document.getElementById('reader');
   if (readerDiv) readerDiv.style.display = 'block';
@@ -64,10 +62,10 @@ async function startScanner() {
         
         try {
           const info = await fetchBookByISBN(decodedText);
-          alert(`📖 스캔 성공: ${info.title} (${info.author || 'Unknown'})`);
+          alert(`📖 Scan successful: ${info.title} (${info.author || 'Unknown'})`);
         } catch (e) {
           console.warn("API auto-fetch failed, but ISBN is filled:", e);
-          alert(`바코드(${decodedText})가 입력되었습니다.`);
+          alert(`Barcode (${decodedText}) code captured.`);
         }
       },
       () => {}
@@ -79,7 +77,7 @@ async function startScanner() {
   }
 }
 
-// 실시간 바코드 스캐너 중지
+// Live Barcode Scanner Stop
 export function stopScanner() {
   if (html5QrCode && html5QrCode.isScanning) {
     html5QrCode.stop().then(() => {}).catch(err => {
@@ -92,7 +90,7 @@ export function stopScanner() {
   if (stopLiveScanBtn) stopLiveScanBtn.style.display = 'none';
 }
 
-// 바코드 뷰 계층 구조(방, 책장, 레이어, 기존 도서 목록) 로드
+// Load Barcode Hierarchy Options (Room, Shelf, Layer, Existing Books)
 export async function loadBarcodeHierarchyOptions() {
   try {
     const querySnapshot = await getDocs(collection(db, "books"));
@@ -202,7 +200,7 @@ export async function loadBarcodeHierarchyOptions() {
   }
 }
 
-// ISBN 도서 추가 및 위치 재정렬 핸들러
+// Add ISBN Book and Reorder Handler
 async function handleAddIsbnBook() {
   const isbn = isbnInput?.value.trim() || '';
   if (!isbn) {
@@ -219,21 +217,34 @@ async function handleAddIsbnBook() {
     submitIsbnBtn.disabled = true;
     submitIsbnBtn.textContent = 'Fetching...';
 
-    let bookInfo = {
-      title: `ISBN Book (${isbn})`,
-      author: 'Unknown',
-      isbn: isbn
-    };
+    let bookTitle = '';
+    let bookAuthor = '';
 
+    // 1. Attempt external API fetch
     try {
       const fetched = await fetchBookByISBN(isbn);
-      if (fetched && fetched.title) {
-        bookInfo = fetched;
+      if (fetched && fetched.title && fetched.title !== 'Unknown Title') {
+        bookTitle = fetched.title;
+        bookAuthor = fetched.author || 'Unknown';
       }
     } catch (apiErr) {
-      console.warn("External ISBN fetch failed, using fallback title.", apiErr);
+      console.warn("External ISBN fetch failed, requesting manual entry.", apiErr);
     }
 
+    // 2. Fallback to manual entry if API fails or returns no title
+    if (!bookTitle) {
+      const inputTitle = prompt(`ISBN (${isbn}) lookup returned no results.\nPlease enter the book title:`);
+      if (!inputTitle || !inputTitle.trim()) {
+        alert('Book title was not entered. Save canceled.');
+        return;
+      }
+      bookTitle = inputTitle.trim();
+
+      const inputAuthor = prompt('Please enter the author name (Leave blank for Unknown):');
+      bookAuthor = inputAuthor && inputAuthor.trim() ? inputAuthor.trim() : 'Unknown';
+    }
+
+    // 3. Query existing books in the selected location
     const q = query(
       collection(db, "books"),
       where("room", "==", room),
@@ -248,10 +259,11 @@ async function handleAddIsbnBook() {
 
     existingBooks.sort((a, b) => (a.position || 0) - (b.position || 0));
 
+    // 4. Build new book object
     const newBookData = {
-      title: bookInfo.title,
-      author: bookInfo.author || 'Unknown',
-      isbn: bookInfo.isbn || isbn,
+      title: bookTitle,
+      author: bookAuthor,
+      isbn: isbn,
       room: room,
       shelfName: shelfName,
       shelfLayer: shelfLayer,
@@ -272,6 +284,7 @@ async function handleAddIsbnBook() {
       finalBooksList.push({ ...newBookData, position: targetPosition });
     }
 
+    // 5. Update/Add Firestore documents
     for (let i = 0; i < finalBooksList.length; i++) {
       const item = finalBooksList[i];
       const newPos = i + 1;
@@ -286,11 +299,11 @@ async function handleAddIsbnBook() {
       }
     }
 
-    alert(`Successfully added & reordered:\n${bookInfo.title} (${bookInfo.author})`);
+    alert(`Successfully added & reordered:\n"${bookTitle}" by ${bookAuthor}`);
     if (isbnInput) isbnInput.value = '';
     if (bcPositionInput) bcPositionInput.value = targetPosition + 1;
 
-    // 메인 함수 콜백 실행
+    // Trigger main callbacks
     if (window._barcodeDeps) {
       await window._barcodeDeps.updateRoomDropdown();
       window._barcodeDeps.loadSavedBooks();
