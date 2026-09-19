@@ -13,11 +13,12 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
  */
 export async function analyzeBookshelfImage(base64Image, targetLang = 'en') {
   if (!GEMINI_API_KEY) {
-    console.warn("Gemini API Key가 설정되지 않았습니다. GitHub Secrets 또는 .env 설정을 확인해주세요.");
+    console.error("Gemini API Key가 설정되지 않았습니다. GitHub Secrets(VITE_GEMINI_API_KEY)를 확인해주세요.");
+    throw new Error("Gemini API Key가 누락되었습니다.");
   }
 
-  // Base64 헤더 제거 (data:image/jpeg;base64, 부분)
-  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
+  // Base64 헤더 및 데이터 정리
+  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
 
   const promptText = `
 Analyze this bookshelf image and identify all visible book titles and their authors.
@@ -30,7 +31,8 @@ Do not include markdown code block tags (\`\`\`json) or any extra conversational
 `;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    // Gemini 3.6 Flash 엔드포인트 호출
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -52,15 +54,21 @@ Do not include markdown code block tags (\`\`\`json) or any extra conversational
       })
     });
 
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      console.error('Gemini API HTTP Error Response:', errData);
+      throw new Error(`Gemini API 통신 실패 (${response.status})`);
+    }
+
     const result = await response.json();
 
-    if (!result.candidates || result.candidates.length === 0) {
-      throw new Error("No response from Gemini API.");
+    if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content?.parts?.[0]?.text) {
+      throw new Error("Gemini 응답 데이터가 올바르지 않습니다.");
     }
 
     let responseText = result.candidates[0].content.parts[0].text.trim();
     
-    // 마크다운 코드 블록 제거 처리
+    // 마크다운 문법(```json ... ```) 제거 처리
     responseText = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
 
     const books = JSON.parse(responseText);
