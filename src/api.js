@@ -1,8 +1,21 @@
 // src/api.js
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-export async function analyzeBookshelfImage(base64Image, targetLang = 'en') {
-  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
+// File 또는 Blob 객체가 전달되어도 Base64 텍스트로 자동 변환하는 함수
+function ensureBase64(input) {
+  if (typeof input === 'string') return Promise.resolve(input);
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(input);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (err) => reject(err);
+  });
+}
+
+export async function analyzeBookshelfImage(imageInput, targetLang = 'en') {
+  // 문자열이든 File 객체든 안전하게 Base64 텍스트로 전환
+  const base64Data = await ensureBase64(imageInput);
+  const cleanBase64 = base64Data.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
 
   const prompt = `Analyze this bookshelf image and identify visible book titles and authors. Output in ${targetLang}. Return ONLY a JSON array: [{"title": "Title", "author": "Author"}]`;
 
@@ -21,7 +34,6 @@ export async function analyzeBookshelfImage(base64Image, targetLang = 'en') {
 
   const data = await response.json();
 
-  // 구글 API 응답 에러 시 콘솔에 상세 정보 출력
   if (!response.ok || data.error) {
     console.error("Gemini API Error Detail:", data.error || data);
     throw new Error(data.error?.message || `HTTP ${response.status}`);
