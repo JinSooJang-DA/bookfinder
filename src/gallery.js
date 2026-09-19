@@ -5,6 +5,7 @@ import { escapeHtml } from './ui.js';
 import { updateRoomDropdown, loadSavedBooks } from './booklist.js';
 
 let galleryContainer = null;
+window.galleryPhotoStore = {};
 
 export function initGalleryModule(options = {}) {
   galleryContainer = document.getElementById('galleryContainer');
@@ -17,6 +18,7 @@ export async function loadGalleryHierarchy() {
   try {
     const querySnapshot = await getDocs(collection(db, "books"));
     const hierarchy = {};
+    window.galleryPhotoStore = {};
 
     querySnapshot.forEach(docSnap => {
       const data = docSnap.data();
@@ -33,12 +35,26 @@ export async function loadGalleryHierarchy() {
         };
       }
 
-      // ImgBB URL 배열 (imageUrls) 및 기존 구버전 키 호환
-      if (data.imageUrls && Array.isArray(data.imageUrls)) {
-        data.imageUrls.forEach(url => hierarchy[room][shelfName][layer].imageUrls.add(url));
-      } else if (data.imageUrl) {
-        hierarchy[room][shelfName][layer].imageUrls.add(data.imageUrl);
-      }
+      // 이미지 URL이 단일 문자열 또는 배열 형태로 저장된 다양한 필드명 호환
+      const arrayFields = ['imageUrls', 'photoUrls', 'photos', 'images', 'urls'];
+      const singleFields = ['imageUrl', 'photoUrl', 'photo', 'image', 'url', 'imgUrl', 'imageBase64', 'imageData'];
+
+      arrayFields.forEach(field => {
+        if (data[field] && Array.isArray(data[field])) {
+          data[field].forEach(url => {
+            if (url && typeof url === 'string' && url.trim() !== '') {
+              hierarchy[room][shelfName][layer].imageUrls.add(url.trim());
+            }
+          });
+        }
+      });
+
+      singleFields.forEach(field => {
+        if (data[field] && typeof data[field] === 'string' && data[field].trim() !== '') {
+          hierarchy[room][shelfName][layer].imageUrls.add(data[field].trim());
+        }
+      });
+
       hierarchy[room][shelfName][layer].booksCount++;
     });
 
@@ -73,6 +89,8 @@ export async function loadGalleryHierarchy() {
         for (const layer of Object.keys(hierarchy[room][shelfName]).sort((a,b) => a - b)) {
           const layerData = hierarchy[room][shelfName][layer];
           const imageUrlsArr = Array.from(layerData.imageUrls);
+          const storeKey = `${room}___${shelfName}___${layer}`;
+          window.galleryPhotoStore[storeKey] = imageUrlsArr;
 
           roomHtml += `
             <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 10px 14px; border-radius: 6px; border: 1px solid #dee2e6;">
@@ -84,7 +102,7 @@ export async function loadGalleryHierarchy() {
           `;
 
           if (imageUrlsArr.length > 0) {
-            roomHtml += `<button class="btn btn-secondary btn-sm" onclick='window.viewLayerGalleryPhotos("${escapeHtml(room)}", "${escapeHtml(shelfName)}", ${layer}, ${JSON.stringify(imageUrlsArr)})'>📷 View Photos (${imageUrlsArr.length})</button>`;
+            roomHtml += `<button class="btn btn-secondary btn-sm" onclick="window.viewLayerGalleryPhotosByKey('${escapeHtml(storeKey)}', '${escapeHtml(room)}', '${escapeHtml(shelfName)}', ${layer})">📷 View Photos (${imageUrlsArr.length})</button>`;
           } else {
             roomHtml += `<span style="font-size: 0.8rem; color: #adb5bd; align-self: center;">No photo</span>`;
           }
@@ -148,6 +166,11 @@ window.deleteLayerScope = async (room, shelfName, layer) => {
       alert('Failed to delete layer.');
     }
   }
+};
+
+window.viewLayerGalleryPhotosByKey = (storeKey, room, shelfName, layer) => {
+  const imageUrls = window.galleryPhotoStore[storeKey] || [];
+  window.viewLayerGalleryPhotos(room, shelfName, layer, imageUrls);
 };
 
 // ImgBB 클라우드 URL로 공유 갤러리 창 띄우기

@@ -14,7 +14,7 @@ import {
 import { i18n } from './i18n.js';
 import { analyzeBookshelfImage, fetchBookByISBN } from './api.js';
 import { renderScannedBooks } from './ui.js';
-import { saveImageLocally } from './storage.js';
+import { saveImageToImgBB } from './storage.js';
 
 // 외부 모듈 불러오기
 import { initBarcodeModule, loadBarcodeHierarchyOptions, stopScanner } from './barcode.js';
@@ -338,6 +338,7 @@ cameraInput?.addEventListener('change', async (event) => {
   }
 });
 
+// 💾 [수정됨] ImgBB 업로드 및 Firestore에 imageUrls 명시적 저장
 saveBtn?.addEventListener('click', async () => {
   const t = i18n[currentLang] || i18n['en'];
   if (accumulatedBooks.length === 0) return;
@@ -350,26 +351,32 @@ saveBtn?.addEventListener('click', async () => {
   try {
     saveBtn.disabled = true;
 
-    const localImageIds = [];
+    // 1. 캡처된 파일들을 ImgBB 클라우드로 업로드하여 공개 URL 목록 추출
+    const imageUrls = [];
     for (const file of accumulatedFiles) {
-      const imgId = await saveImageLocally(file);
-      localImageIds.push(imgId);
+      const uploadedUrl = await saveImageToImgBB(file);
+      if (uploadedUrl) {
+        imageUrls.push(uploadedUrl);
+      }
     }
 
-    for (const book of accumulatedBooks) {
-      await addDoc(collection(db, "books"), {
-        title: book.title,
-        author: book.author || 'Unknown',
+    // 2. Firestore에 gallery.js 호환 필드명(imageUrls)으로 도서 정보와 함께 저장
+    const savePromises = accumulatedBooks.map(book => {
+      return addDoc(collection(db, "books"), {
+        title: book.title || 'Unknown Title',
+        author: book.author || 'Unknown Author',
         language: book.language || 'original',
         room: room,
         shelfName: shelfName,
         shelfLayer: Number(shelfLayer),
         totalLayers: Number(totalLayers),
-        position: book.position,
-        localImageIds: localImageIds,
+        position: Number(book.position) || 1,
+        imageUrls: imageUrls, // gallery.js 및 백엔드 스키마와 100% 호환되는 필드명
         createdAt: serverTimestamp()
       });
-    }
+    });
+
+    await Promise.all(savePromises);
 
     alert(t.alertSuccessSave);
     if (resultCard) resultCard.style.display = 'none';
@@ -379,7 +386,7 @@ saveBtn?.addEventListener('click', async () => {
     loadSavedBooks();
   } catch (error) {
     console.error('Save Error:', error);
-    alert('Failed to save books.');
+    alert('Failed to save books and image URLs.');
   } finally {
     saveBtn.disabled = false;
   }
