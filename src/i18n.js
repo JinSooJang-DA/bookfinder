@@ -5,16 +5,22 @@ export const i18n = {
     mainHeading: "📚 Bookshelf Scanner",
     lblUiLang: "🌐 Language",
 
-    menuScanTitle: "📖 Book Input",
-    menuScanDesc: "(Scan & Register)",
+    menuSetupTitle: "🗄️ Shelf Setup",
+    menuSetupDesc: "(Fast Photo Upload)",
+    menuScanTitle: "📖 Live Analysis",
+    menuScanDesc: "(Upload & Register)",
     menuGalleryTitle: "🖼️ Gallery",
-    menuGalleryDesc: "(View Shelf Photos)",
+    menuGalleryDesc: "(Batch Re-analyze)",
     menuSearchTitle: "🔍 Search Books",
     menuSearchDesc: "(Inventory Lookup)",
     menuBarcodeTitle: "📱 Barcode Input",
     menuBarcodeDesc: "(Add Individual Book)",
     backToMenu: "⬅️ Back to Menu",
 
+    setupViewTitle: "🗄️ Basic Shelf Setup",
+    setupViewDesc: "Quickly save multiple photos to the gallery without waiting for analysis.",
+    btnSetupPhoto: "📸 Select Multiple Photos",
+    
     scanViewTitle: "📖 Book Input & Scan",
     lblTargetLang: "Book Title Output Language",
     roomInputLabel: "Room Name",
@@ -113,6 +119,7 @@ export const i18n = {
     failed: "Failed/Not found",
 
     btnReanalyze: "Re-analyze",
+    reanalyzeRequested: "Analysis requested. Please wait until it completes.",
     reanalyzingStarted: "Starting re-analysis. Please wait...",
     reanalyzeSuccess: "Re-analysis successful! Books have been updated.",
     corsErrorReanalyze: "Failed to download image from cloud server for re-analysis."
@@ -122,15 +129,21 @@ export const i18n = {
     mainHeading: "📚 Bücherregal-Scanner",
     lblUiLang: "🌐 Sprache",
 
-    menuScanTitle: "📖 Bücher erfassen",
-    menuScanDesc: "(Scannen & Registrieren)",
+    menuSetupTitle: "🗄️ Regal Setup",
+    menuSetupDesc: "(Schneller Foto-Upload)",
+    menuScanTitle: "📖 Live-Analyse",
+    menuScanDesc: "(Upload & Registrieren)",
     menuGalleryTitle: "🖼️ Galerie",
-    menuGalleryDesc: "(Regalfotos anzeigen)",
+    menuGalleryDesc: "(Stapel-Analyse)",
     menuSearchTitle: "🔍 Bücher suchen",
     menuSearchDesc: "(Bestand durchsuchen)",
     menuBarcodeTitle: "📱 Barcode-Eingabe",
     menuBarcodeDesc: "(Einzelnes Buch hinzufügen)",
     backToMenu: "⬅️ Zurück zum Menü",
+
+    setupViewTitle: "🗄️ Regal-Grundkonfiguration",
+    setupViewDesc: "Speichern Sie mehrere Fotos schnell in der Galerie, ohne auf die Analyse zu warten.",
+    btnSetupPhoto: "📸 Mehrere Fotos auswählen",
 
     scanViewTitle: "📖 Bücher erfassen & scannen",
     lblTargetLang: "Ausgabesprache für Buchtitel",
@@ -208,6 +221,18 @@ export const i18n = {
     failSaveBook: "Speichern der Bücher fehlgeschlagen.",
     failAnalyzeImage: "Bildanalyse fehlgeschlagen.",
 
+    galleryLoading: "Regalgalerie wird geladen...",
+    galleryEmpty: "Noch keine Regaleinträge in der Datenbank gefunden.",
+    galleryError: "Fehler beim Laden der Galeriehierarchie.",
+    shelfDeleteConfirm: "Möchten Sie wirklich alle Bücher und Fotodatensätze im Raum",
+    shelfDeleteSuccess: "Regal erfolgreich gelöscht.",
+    shelfDeleteFail: "Fehler beim Löschen des Regals.",
+    layerDeleteConfirm: "Möchten Sie wirklich die Datensätze im Raum",
+    layerDeleteSuccess: "Fachdaten erfolgreich gelöscht.",
+    layerDeleteFail: "Fehler beim Löschen des Fachs.",
+    noPhoto: "Kein Foto",
+    noImageLocal: "Keine Bilddateien lokal gefunden.",
+
     noMissingIsbnFound: "Alle registrierten Bücher haben bereits eine ISBN.",
     confirmAutoFillIsbn: " Bücher haben keine ISBN. Möchten Sie diese automatisch suchen und ergänzen?",
     searchingIsbn: "ISBN wird gesucht...",
@@ -218,6 +243,7 @@ export const i18n = {
     failed: "Fehlgeschlagen/Nicht gefunden",
 
     btnReanalyze: "Erneut analysieren",
+    reanalyzeRequested: "Analyse angefordert. Bitte warten Sie, bis sie abgeschlossen ist.",
     reanalyzingStarted: "Erneute Analyse gestartet. Bitte warten...",
     reanalyzeSuccess: "Erneute Analyse erfolgreich! Bücher wurden aktualisiert.",
     corsErrorReanalyze: "Fehler beim Herunterladen des Bildes für die erneute Analyse."
@@ -227,15 +253,21 @@ export const i18n = {
     mainHeading: "📚 책장 스캐너",
     lblUiLang: "🌐 언어 설정",
 
-    menuScanTitle: "📖 책 입력",
-    menuScanDesc: "(스캔 및 등록)",
+    menuSetupTitle: "🗄️ 책장 구성",
+    menuSetupDesc: "(사진 일괄 업로드)",
+    menuScanTitle: "📖 실시간 분석",
+    menuScanDesc: "(업로드 & 즉시 등록)",
     menuGalleryTitle: "🖼️ 갤러리",
-    menuGalleryDesc: "(책장별 사진 보기)",
+    menuGalleryDesc: "(묶음 재분석 지원)",
     menuSearchTitle: "🔍 도서 검색",
     menuSearchDesc: "(인벤토리 조회)",
     menuBarcodeTitle: "📷 바코드 입력",
     menuBarcodeDesc: "(개별 도서 추가)",
     backToMenu: "⬅️ 메인 메뉴로 돌아가기",
+
+    setupViewTitle: "🗄️ 책장 기본 사진 구성",
+    setupViewDesc: "분석 대기 없이 다중 사진만 갤러리에 빠르게 저장합니다.",
+    btnSetupPhoto: "📸 사진 다중 선택 / 촬영",
 
     scanViewTitle: "📖 책 입력 및 스캔",
     lblTargetLang: "도서 제목 출력 언어",
@@ -323,6 +355,7 @@ export const i18n = {
     failed: "실패/없음",
 
     btnReanalyze: "다시 분석하기",
+    reanalyzeRequested: "분석을 의뢰했습니다. 완료될 때까지 잠시만 기다려주세요.",
     reanalyzingStarted: "재분석을 시작합니다. 잠시만 기다려주세요...",
     reanalyzeSuccess: "재분석 완료! 도서 목록이 업데이트되었습니다.",
     corsErrorReanalyze: "재분석을 위한 이미지 다운로드에 실패했습니다."

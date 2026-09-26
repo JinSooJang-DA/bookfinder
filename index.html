@@ -1,27 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="appTitle">Bookshelf Scanner App</title>
   <link rel="stylesheet" href="./src/style.css" />
 </head>
-
 <body>
   <!-- 🔐 로그인 컨테이너 -->
   <div id="authContainer" class="card" style="max-width: 400px; margin: 40px auto; padding: 20px;">
     <h2 style="margin-top: 0; text-align: center;">🔐 Bookshelf Login</h2>
     <p style="text-align: center; color: #666; font-size: 0.9rem;">Please log in to secure your data.</p>
-
     <label style="font-weight: bold; margin-top: 10px; display: block;">Email</label>
-    <input type="email" id="authEmail" placeholder="user@example.com" autocomplete="email"
-      style="width: 100%; padding: 8px; margin-bottom: 10px;">
-
+    <input type="email" id="authEmail" placeholder="user@example.com" autocomplete="email" style="width: 100%; padding: 8px; margin-bottom: 10px;">
     <label style="font-weight: bold; display: block;">Password</label>
-    <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password"
-      style="width: 100%; padding: 8px; margin-bottom: 15px;">
-
+    <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password" style="width: 100%; padding: 8px; margin-bottom: 15px;">
     <button id="btnLogin" class="btn btn-success" style="width: 100%; margin-bottom: 8px;">Login</button>
   </div>
 
@@ -32,7 +25,6 @@
       <button id="btnLogout" class="btn btn-danger btn-sm">🚪 Logout</button>
     </div>
 
-    <!-- 🌐 설정 바 -->
     <div class="card" style="background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin-bottom: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span style="font-weight: bold; font-size: 0.9rem;" id="lblUiLang">🌐 Language</span>
@@ -47,31 +39,68 @@
     <!-- 🏠 메인 대시보드 메뉴 -->
     <div id="mainDashboard">
       <div class="main-menu-grid">
+        <!-- 💡 신규: 책장 구성 (분석 없이 사진만 업로드) -->
+        <button onclick="switchView('setupView')" class="menu-card">
+          <span id="menuSetupTitle">🗄️ 책장 구성</span>
+          <span id="menuSetupDesc" class="menu-desc">(사진 일괄 업로드)</span>
+        </button>
         <button onclick="switchView('scanView')" class="menu-card">
-          <span id="menuScanTitle">📖 Book Input</span>
-          <span id="menuScanDesc" class="menu-desc">(Scan & Register)</span>
+          <span id="menuScanTitle">📖 실시간 분석</span>
+          <span id="menuScanDesc" class="menu-desc">(업로드 & 즉시 등록)</span>
         </button>
         <button onclick="switchView('galleryView')" class="menu-card">
-          <span id="menuGalleryTitle">🖼️ Gallery</span>
-          <span id="menuGalleryDesc" class="menu-desc">(View Shelf Photos)</span>
-        </button>
-        <button onclick="switchView('searchView')" class="menu-card">
-          <span id="menuSearchTitle">🔍 Search Books</span>
-          <span id="menuSearchDesc" class="menu-desc">(Inventory Lookup)</span>
+          <span id="menuGalleryTitle">🖼️ 갤러리</span>
+          <span id="menuGalleryDesc" class="menu-desc">(묶음 재분석 지원)</span>
         </button>
         <button onclick="switchView('barcodeView')" class="menu-card">
-          <span id="menuBarcodeTitle">📱 Barcode Input</span>
-          <span id="menuBarcodeDesc" class="menu-desc">(Add Individual Book)</span>
+          <span id="menuBarcodeTitle">📱 바코드 입력</span>
+          <span id="menuBarcodeDesc" class="menu-desc">(개별 도서 추가)</span>
         </button>
       </div>
     </div>
 
-    <!-- 메인으로 돌아가기 바 -->
     <div id="navBackBar" style="display: none; margin-bottom: 15px;">
       <button class="btn btn-secondary btn-sm" id="backToMenuBtn" onclick="switchView('mainDashboard')">⬅️ Back to Menu</button>
     </div>
 
-    <!-- 1. 📖 책 입력 뷰 -->
+    <!-- 1. 🗄️ 책장 구성 (빠른 업로드) 뷰 -->
+    <div id="setupView" class="sub-view" style="display: none;">
+      <div class="card">
+        <h3 id="setupViewTitle" style="margin-top: 0;">🗄️ 책장 기본 사진 구성</h3>
+        <p id="setupViewDesc" style="font-size: 0.9rem; color: #666; margin-bottom:15px;">분석 대기 없이 다중 사진만 갤러리에 빠르게 저장합니다.</p>
+
+        <label for="setupRoomSelect" id="setupRoomLabel">Room Name</label>
+        <select id="setupRoomSelect" style="margin-bottom: 8px;"></select>
+        <input type="text" id="setupRoomInput" placeholder="Enter new room name" style="display: none; margin-bottom: 14px;">
+
+        <label for="setupShelfSelect" id="setupShelfLabel">Bookcase Name</label>
+        <select id="setupShelfSelect" style="margin-bottom: 8px;"></select>
+        <input type="text" id="setupShelfInput" placeholder="Enter new bookcase name" style="display: none; margin-bottom: 14px;">
+
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1;">
+            <label id="setupLblTotalLayers">Total Layers</label>
+            <input type="number" id="setupTotalLayers" min="1" max="20" value="5">
+          </div>
+          <div style="flex: 1;">
+            <label id="setupLblCurrentLayer">Current Layer</label>
+            <select id="setupShelfLayer"></select>
+          </div>
+        </div>
+
+        <input type="file" id="setupCameraInput" accept="image/*" multiple style="display: none;">
+        <button class="btn btn-secondary" id="btnSetupPhoto" onclick="document.getElementById('setupCameraInput').click()" style="margin-top: 12px; width: 100%;">
+          📸 사진 다중 선택 / 촬영
+        </button>
+        <div id="setupPreviewContainer" style="margin-top:10px; display:flex; gap:5px; overflow-x:auto;"></div>
+
+        <button id="setupSaveBtn" class="btn btn-success" style="margin-top: 15px; width: 100%; display: none;">
+          💾 사진 데이터베이스에 저장
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. 📖 실시간 분석 책 입력 뷰 -->
     <div id="scanView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="scanViewTitle" style="margin-top: 0;">📖 Book Input & Scan</h3>
@@ -84,14 +113,13 @@
         </select>
         <input type="text" id="customLanguageInput" placeholder="Enter language e.g. Korean" style="display: none; margin-bottom: 10px;">
 
-        <!-- 💡 입력 시 기존 목록이 표시되도록 datalist 연동 -->
-        <label for="roomInput" id="roomInputLabel">Room Name</label>
-        <input type="text" id="roomInput" list="roomDataList" value="Living Room" autocomplete="off" placeholder="Select or type new room">
-        <datalist id="roomDataList"></datalist>
+        <label for="roomSelect" id="roomInputLabel">Room Name</label>
+        <select id="roomSelect" style="margin-bottom: 8px;"></select>
+        <input type="text" id="roomInput" placeholder="Enter new room name" style="display: none; margin-bottom: 14px;">
 
-        <label for="shelfName" id="shelfNameLabel">Bookcase Name</label>
-        <input type="text" id="shelfName" list="shelfDataList" value="Bookcase A" autocomplete="off" placeholder="Select or type new bookcase">
-        <datalist id="shelfDataList"></datalist>
+        <label for="shelfSelect" id="shelfNameLabel">Bookcase Name</label>
+        <select id="shelfSelect" style="margin-bottom: 8px;"></select>
+        <input type="text" id="shelfInput" placeholder="Enter new bookcase name" style="display: none; margin-bottom: 14px;">
 
         <div style="display: flex; gap: 10px;">
           <div style="flex: 1;">
@@ -125,7 +153,7 @@
       </div>
     </div>
 
-    <!-- 2. 🖼️ 갤러리 뷰 -->
+    <!-- 3. 🖼️ 갤러리 뷰 -->
     <div id="galleryView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="galleryViewTitle" style="margin-top: 0;">🖼️ Bookshelf Gallery</h3>
@@ -135,7 +163,7 @@
       </div>
     </div>
 
-    <!-- 3. 🔍 도서 검색 뷰 -->
+    <!-- 4. 🔍 도서 검색 뷰 -->
     <div id="searchView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="searchViewTitle" style="margin-top: 0;">📖 Book Search & Inventory</h3>
@@ -163,7 +191,7 @@
       </div>
     </div>
 
-    <!-- 4. 📷 바코드 입력 뷰 -->
+    <!-- 5. 📷 바코드 입력 뷰 -->
     <div id="barcodeView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="barcodeViewTitle" style="margin-top: 0;">📷 Barcode (ISBN) Individual Book Add</h3>
@@ -246,5 +274,4 @@
 
   <script type="module" src="./src/main.js"></script>
 </body>
-
 </html>

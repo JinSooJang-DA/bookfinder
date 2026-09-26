@@ -2,7 +2,7 @@
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GOOGLE_BOOKS_API_KEY = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY || '';
 
-// 1. 브라우저 캔버스를 이용한 이미지 리사이즈 (토큰 및 전송량 대폭 절감)
+// 브라우저 캔버스를 이용한 이미지 리사이즈 (토큰 절감)
 function resizeImage(file, maxDimension = 1600) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -18,13 +18,11 @@ function resizeImage(file, maxDimension = 1600) {
           height = maxDimension;
         }
       }
-      
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, width, height);
-
       const base64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
       resolve(base64);
     };
@@ -32,83 +30,60 @@ function resizeImage(file, maxDimension = 1600) {
   });
 }
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
- * Gemini AI 책장 이미지 분석 (토큰 최적화 및 503/429/400 자동 재시도 적용)
+ * Gemini AI 이미지 분석 (호출 무조건 1회, 다중 이미지 묶음 전송 지원)
  */
-export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retryCount = 0) {
-  let cleanBase64;
+export async function analyzeBookshelfImage(imageInputs, targetLang = 'en') {
+  // 단일 입력도 배열로 통일하여 다중 이미지 묶음 처리가 가능하도록 변경
+  const inputs = Array.isArray(imageInputs) ? imageInputs : [imageInputs];
+  const prompt = `Extract all visible book titles and authors from the provided image(s). Output in ${targetLang}. If author is not visible, return an empty string.`;
   
-  if (imageInput instanceof File || imageInput instanceof Blob) {
-    cleanBase64 = await resizeImage(imageInput);
-  } else if (typeof imageInput === 'string') {
-    cleanBase64 = imageInput.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
+  const parts = [{ text: prompt }];
+
+  for (const input of inputs) {
+    let cleanBase64;
+    if (input instanceof File || input instanceof Blob) {
+      cleanBase64 = await resizeImage(input);
+    } else if (typeof input === 'string') {
+      cleanBase64 = input.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
+    }
+    if (cleanBase64) {
+      parts.push({ inline_data: { mime_type: "image/jpeg", data: cleanBase64 } });
+    }
   }
 
-  const prompt = `Extract all visible book titles and authors from this image. Output in ${targetLang}. If author is not visible, return an empty string.`;
-
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
-          ]
-        }],
-        // REST API 규격에 맞춘 설정 (config -> generationConfig)
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "ARRAY",
-            description: "List of identified books",
-            items: {
-              type: "OBJECT",
-              properties: {
-                title: { type: "STRING", description: "Title of the book" },
-                author: { type: "STRING", description: "Author name or empty string if not visible" }
-              },
-              required: ["title"]
-            }
-          },
-          temperature: 1.0
-        }
-      })
-    });
-
-    if ((response.status === 503 || response.status === 429 || response.status >= 500) && retryCount < 4) {
-      const waitTime = Math.pow(2, retryCount + 1) * 1000;
-      console.warn(`[Gemini 서버 과부하 ${response.status}] ${waitTime / 1000}초 후 다시 시도합니다... (${retryCount + 1}/4)`);
-      await delay(waitTime);
-      return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
-    }
-
-    const data = await response.json();
-
-    if (!response.ok || data.error) {
-      if ((data.error?.code === 503 || data.error?.status === 'UNAVAILABLE') && retryCount < 4) {
-        const waitTime = Math.pow(2, retryCount + 1) * 1000;
-        await delay(waitTime);
-        return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
+  // 재시도 로직 없이 단 1회만 호출. 모델은 안정적인 3.6-flash 고정
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: parts }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING" },
+              author: { type: "STRING" }
+            },
+            required: ["title"]
+          }
+        },
+        temperature: 1.0
       }
-      throw new Error(data.error?.message || `HTTP ${response.status}`);
-    }
+    })
+  });
 
-    // JSON 스키마를 강제했으므로 백틱이나 불필요한 텍스트 없이 바로 객체로 파싱 가능
-    const text = data.candidates[0].content.parts[0].text;
-    return JSON.parse(text);
+  const data = await response.json();
 
-  } catch (error) {
-    if (retryCount < 4 && (error.message?.includes('503') || error.message?.includes('high demand') || error.message?.includes('UNAVAILABLE'))) {
-      const waitTime = Math.pow(2, retryCount + 1) * 1000;
-      await delay(waitTime);
-      return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
-    }
-    throw error;
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.message || `HTTP ${response.status}`);
   }
+
+  const text = data.candidates[0].content.parts[0].text;
+  return JSON.parse(text);
 }
 
 /**
@@ -123,7 +98,6 @@ export async function fetchBookByISBN(isbn) {
     if (GOOGLE_BOOKS_API_KEY) {
       googleUrl += `&key=${GOOGLE_BOOKS_API_KEY}`;
     }
-
     const res = await fetch(googleUrl);
     if (res.ok) {
       const data = await res.json();
@@ -137,7 +111,7 @@ export async function fetchBookByISBN(isbn) {
       }
     }
   } catch (err) {
-    console.warn(`[Google Books 조회 실패] ISBN: ${cleanIsbn}`, err);
+    console.warn(`[Google Books 조회 실패]`, err);
   }
 
   try {
@@ -155,9 +129,8 @@ export async function fetchBookByISBN(isbn) {
       }
     }
   } catch (olErr) {
-    console.warn(`[Open Library 조회 실패] ISBN: ${cleanIsbn}`, olErr);
+    console.warn(`[Open Library 조회 실패]`, olErr);
   }
-
   return null;
 }
 
@@ -168,16 +141,12 @@ async function fetchISBNFromOpenLibrary(title, author = '') {
   try {
     const cleanTitle = title.replace(/[[\]()]/g, '').trim();
     const cleanAuthor = author && author !== 'Unknown' ? author.replace(/[[\]()]/g, '').trim() : '';
-    
     let url = `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}`;
-    if (cleanAuthor) {
-      url += `&author=${encodeURIComponent(cleanAuthor)}`;
-    }
+    if (cleanAuthor) url += `&author=${encodeURIComponent(cleanAuthor)}`;
     url += `&limit=3`;
 
     const response = await fetch(url);
     if (!response.ok) return null;
-
     const data = await response.json();
     if (!data.docs || data.docs.length === 0) return null;
 
@@ -190,7 +159,6 @@ async function fetchISBNFromOpenLibrary(title, author = '') {
     }
     return null;
   } catch (err) {
-    console.error(`OpenLibrary Search failed for "${title}":`, err);
     return null;
   }
 }
@@ -198,51 +166,31 @@ async function fetchISBNFromOpenLibrary(title, author = '') {
 /**
  * 제목과 작가로 ISBN 역검색 (Google Books -> Open Library)
  */
-export async function fetchISBNByTitleAuthor(title, author = '', retryCount = 0) {
+export async function fetchISBNByTitleAuthor(title, author = '') {
   if (!title) return null;
 
   const cleanTitle = title.replace(/[[\]()]/g, '').trim();
   const cleanAuthor = author && author !== 'Unknown' ? author.replace(/[[\]()]/g, '').trim() : '';
-  
   let query = `intitle:${encodeURIComponent(cleanTitle)}`;
-  if (cleanAuthor) {
-    query += `+inauthor:${encodeURIComponent(cleanAuthor)}`;
-  }
+  if (cleanAuthor) query += `+inauthor:${encodeURIComponent(cleanAuthor)}`;
 
   let googleUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=3`;
-  if (GOOGLE_BOOKS_API_KEY) {
-    googleUrl += `&key=${GOOGLE_BOOKS_API_KEY}`;
-  }
+  if (GOOGLE_BOOKS_API_KEY) googleUrl += `&key=${GOOGLE_BOOKS_API_KEY}`;
 
   try {
     const response = await fetch(googleUrl);
-
-    if (response.status === 429 || response.status === 403) {
-      if (retryCount < 1) {
-        await delay(1500);
-        return await fetchISBNByTitleAuthor(title, author, retryCount + 1);
-      }
-      return await fetchISBNFromOpenLibrary(title, author);
-    }
-
-    if (!response.ok) {
-      return await fetchISBNFromOpenLibrary(title, author);
-    }
+    if (!response.ok) return await fetchISBNFromOpenLibrary(title, author);
 
     const data = await response.json();
-    if (!data.items || data.items.length === 0) {
-      return await fetchISBNFromOpenLibrary(title, author);
-    }
+    if (!data.items || data.items.length === 0) return await fetchISBNFromOpenLibrary(title, author);
 
     for (const item of data.items) {
       const identifiers = item.volumeInfo?.industryIdentifiers || [];
       const isbnObj = identifiers.find(i => i.type === 'ISBN_13') || identifiers.find(i => i.type === 'ISBN_10');
-      
       if (isbnObj && isbnObj.identifier) {
         return isbnObj.identifier.replace(/[^0-9X]/gi, '');
       }
     }
-
     return await fetchISBNFromOpenLibrary(title, author);
   } catch (error) {
     return await fetchISBNFromOpenLibrary(title, author);

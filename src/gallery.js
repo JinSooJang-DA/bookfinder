@@ -4,7 +4,7 @@ import { collection, getDocs, query, where, deleteDoc, doc, addDoc, serverTimest
 import { escapeHtml } from './ui.js';
 import { updateRoomDropdown, loadSavedBooks } from './booklist.js';
 import { i18n } from './i18n.js';
-import { analyzeBookshelfImage } from './api.js'; // 재분석용 API 임포트
+import { analyzeBookshelfImage } from './api.js';
 
 let galleryContainer = null;
 
@@ -34,26 +34,19 @@ export async function loadGalleryHierarchy() {
       if (!hierarchy[room]) hierarchy[room] = {};
       if (!hierarchy[room][shelfName]) hierarchy[room][shelfName] = {};
       if (!hierarchy[room][shelfName][layer]) {
-        hierarchy[room][shelfName][layer] = {
-          imageUrls: new Set(),
-          books: []
-        };
+        hierarchy[room][shelfName][layer] = { imageUrls: new Set(), books: [] };
       }
 
-      // 호환 필드명에서 이미지 URL 추출
       const arrayFields = ['imageUrls', 'photoUrls', 'photos', 'images', 'urls'];
       const singleFields = ['imageUrl', 'photoUrl', 'photo', 'image', 'url', 'imgUrl'];
 
       arrayFields.forEach(field => {
         if (data[field] && Array.isArray(data[field])) {
           data[field].forEach(url => {
-            if (url && typeof url === 'string' && url.trim() !== '') {
-              hierarchy[room][shelfName][layer].imageUrls.add(url.trim());
-            }
+            if (url && typeof url === 'string' && url.trim() !== '') hierarchy[room][shelfName][layer].imageUrls.add(url.trim());
           });
         }
       });
-
       singleFields.forEach(field => {
         if (data[field] && typeof data[field] === 'string' && data[field].trim() !== '') {
           hierarchy[room][shelfName][layer].imageUrls.add(data[field].trim());
@@ -76,16 +69,13 @@ export async function loadGalleryHierarchy() {
     }
 
     galleryContainer.innerHTML = '';
+    window.galleryPhotoStore = {};
 
     rooms.forEach(room => {
       const roomCard = document.createElement('div');
       roomCard.className = 'gallery-room-card';
 
-      let roomHtml = `
-        <div class="gallery-room-header">
-          <h3>🏠 Room: ${escapeHtml(room)}</h3>
-        </div>
-      `;
+      let roomHtml = `<div class="gallery-room-header"><h3>🏠 Room: ${escapeHtml(room)}</h3></div>`;
 
       Object.keys(hierarchy[room]).forEach(shelfName => {
         const shelfData = hierarchy[room][shelfName];
@@ -110,12 +100,9 @@ export async function loadGalleryHierarchy() {
           const sortedBooks = [...layerItem.books].sort((a, b) => a.position - b.position);
           const firstThumb = imageUrlsArr.length > 0 ? imageUrlsArr[0] : null;
           
-          // 전역 스토어 대신 HTML 속성에 URL을 직접 매핑 (안전성 강화)
           const storeKey = `${room}___${shelfName}___${layer}`;
-          window.galleryPhotoStore = window.galleryPhotoStore || {};
           window.galleryPhotoStore[storeKey] = imageUrlsArr;
 
-          // 미분석 데이터 확인 (저자가 '-' 인 경우)
           const isUnanalyzed = sortedBooks.length === 1 && sortedBooks[0].author === '-';
 
           roomHtml += `
@@ -127,9 +114,7 @@ export async function loadGalleryHierarchy() {
                   <span class="layer-badge">${sortedBooks.length} items</span>
                 </div>
                 <div class="layer-header-right">
-                  ${firstThumb 
-                    ? `<img src="${firstThumb}" class="layer-mini-thumb" alt="Layer preview" />` 
-                    : `<span class="no-photo-badge">No photo</span>`}
+                  ${firstThumb ? `<img src="${firstThumb}" class="layer-mini-thumb" alt="preview" />` : `<span class="no-photo-badge">No photo</span>`}
                   <button class="btn btn-danger btn-sm btn-delete-layer-tight" onclick="event.stopPropagation(); window.deleteLayerScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}', ${layer})">🗑️</button>
                 </div>
               </div>
@@ -140,15 +125,11 @@ export async function loadGalleryHierarchy() {
                     ${imageUrlsArr.map((url, idx) => `
                       <div class="photo-slide-item">
                         <span class="photo-shot-tag">📸 Shot #${idx + 1}</span>
-                        <a href="${url}" target="_blank">
-                          <img src="${url}" class="shelf-photo-view" alt="Layer ${layer} Shot ${idx + 1}" loading="lazy" />
-                        </a>
+                        <a href="${url}" target="_blank"><img src="${url}" class="shelf-photo-view" loading="lazy" /></a>
                       </div>
                     `).join('')}
                   </div>
-                ` : `
-                  <div class="no-photo-alert">No photos registered for this layer.</div>
-                `}
+                ` : `<div class="no-photo-alert">No photos registered for this layer.</div>`}
 
                 <div class="layer-books-mapping-box">
                   <div class="mapping-title" style="display: flex; justify-content: space-between; align-items: center;">
@@ -157,7 +138,7 @@ export async function loadGalleryHierarchy() {
                       <button class="btn ${isUnanalyzed ? 'btn-success' : 'btn-secondary'} btn-sm" 
                               style="${isUnanalyzed ? '' : 'padding: 2px 6px; font-size: 0.75rem;'}"
                               onclick="window.reanalyzeLayer('${escapeHtml(room)}', '${escapeHtml(shelfName)}', ${layer}, '${escapeHtml(storeKey)}')">
-                        ${isUnanalyzed ? `🔍 ${t('btnReanalyze') || 'Re-analyze'}` : `🔄 ${t('btnReanalyze') || 'Re-analyze'}`}
+                        ${isUnanalyzed ? `🔍 ${t('btnReanalyze')}` : `🔄 ${t('btnReanalyze')}`}
                       </button>
                     ` : ''}
                   </div>
@@ -176,62 +157,40 @@ export async function loadGalleryHierarchy() {
             <div class="shelf-plank-separator"></div>
           `;
         });
-
-        roomHtml += `
-            </div> 
-          </div>
-        `;
+        roomHtml += `</div></div>`;
       });
-
       roomCard.innerHTML = roomHtml;
       galleryContainer.appendChild(roomCard);
     });
-
   } catch (error) {
-    console.error('Gallery Load Error:', error);
-    galleryContainer.innerHTML = `<p style="color: #d9534f; text-align: center;">${t('galleryError') || 'Failed to load gallery hierarchy.'}</p>`;
+    galleryContainer.innerHTML = `<p style="color: #d9534f; text-align: center;">${t('galleryError')}</p>`;
   }
 }
 
-// 갤러리 이미지 기반 재분석 로직
+// 💡 다중 이미지 묶음 전송 1회 호출 재분석 로직
 window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
   const imageUrls = window.galleryPhotoStore[storeKey] || [];
-  if (imageUrls.length === 0) {
-    alert(t('noImageLocal') || 'No image to analyze.');
-    return;
-  }
+  if (imageUrls.length === 0) return alert(t('noImageLocal'));
 
-  const targetUrl = imageUrls[0]; // 첫 번째 사진 기준 분석
-  let imageBlob;
-
-  try {
-    // ImgBB 이미지 다운로드 (CORS 우회를 위해 필요시 프록시 사용)
-    let response;
-    try {
-      response = await fetch(targetUrl);
-    } catch (e) {
-      response = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
-    }
-    imageBlob = await response.blob();
-  } catch (err) {
-    console.error("Image Fetch Error:", err);
-    alert(t('corsErrorReanalyze') || 'Failed to download image from cloud server.');
-    return;
-  }
-
+  alert(t('reanalyzeRequested') || '분석을 의뢰했습니다. 완료될 때까지 잠시만 기다려주세요.');
   const lang = window.currentLang || 'en';
-  alert(t('reanalyzingStarted') || 'Starting re-analysis. Please wait...');
-
+  
   try {
-    // 1. 이미지 분석 요청
-    const newDetectedBooks = await analyzeBookshelfImage(imageBlob, lang);
+    const blobPromises = imageUrls.map(async (url) => {
+      let response;
+      try { response = await fetch(url); } catch (e) { response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`); }
+      return await response.blob();
+    });
+    const imageBlobs = await Promise.all(blobPromises);
+
+    // 단 1회 호출
+    const newDetectedBooks = await analyzeBookshelfImage(imageBlobs, lang);
 
     if (!newDetectedBooks || newDetectedBooks.length === 0) {
       alert(t('noBooksDetected') || 'No books detected in the image.');
       return;
     }
 
-    // 2. 기존 데이터 (임시 데이터 포함) 삭제
     const q = query(collection(db, "books"),
       where("room", "==", room),
       where("shelfName", "==", shelfName),
@@ -248,7 +207,6 @@ window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
     });
     await Promise.all(deletePromises);
 
-    // 3. 새로 분석된 도서 저장 (기존 이미지 URL 유지)
     const savePromises = newDetectedBooks.map((book, idx) => {
       return addDoc(collection(db, "books"), {
         title: book.title || 'Unknown Title',
@@ -265,16 +223,11 @@ window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
     });
 
     await Promise.all(savePromises);
-
     alert(t('reanalyzeSuccess') || 'Re-analysis successful! Books have been updated.');
     
-    // 4. UI 갱신
     await loadGalleryHierarchy();
-    if (window._barcodeDeps && window._barcodeDeps.loadSavedBooks) {
-      window._barcodeDeps.loadSavedBooks();
-    }
+    if (window._barcodeDeps && window._barcodeDeps.loadSavedBooks) window._barcodeDeps.loadSavedBooks();
   } catch (error) {
-    console.error('Re-analyze Error:', error);
     alert(t('failAnalyzeImage') || 'Failed to analyze image.');
   }
 };
@@ -283,7 +236,6 @@ window.toggleLayerAccordion = (room, shelfName, layer) => {
   const cardId = `layerCard_${room}_${shelfName}_${layer}`;
   const card = document.getElementById(cardId);
   if (!card) return;
-
   const body = card.querySelector('.accordion-layer-body');
   const arrow = card.querySelector('.accordion-arrow');
 
@@ -305,15 +257,12 @@ window.deleteShelfScope = async (room, shelfName) => {
       const querySnapshot = await getDocs(q);
       const deletePromises = [];
       querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
-
       await Promise.all(deletePromises);
       alert('Bookshelf deleted successfully.');
       await updateRoomDropdown();
       loadGalleryHierarchy();
       loadSavedBooks();
-    } catch (error) {
-      alert('Failed to delete bookshelf.');
-    }
+    } catch (error) { alert('Failed to delete bookshelf.'); }
   }
 };
 
@@ -324,14 +273,11 @@ window.deleteLayerScope = async (room, shelfName, layer) => {
       const querySnapshot = await getDocs(q);
       const deletePromises = [];
       querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
-
       await Promise.all(deletePromises);
       alert('Layer data deleted successfully.');
       await updateRoomDropdown();
       loadGalleryHierarchy();
       loadSavedBooks();
-    } catch (error) {
-      alert('Failed to delete layer.');
-    }
+    } catch (error) { alert('Failed to delete layer.'); }
   }
 };
