@@ -27,7 +27,6 @@ const uiLanguageSelect = document.getElementById('uiLanguageSelect');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const customLanguageInput = document.getElementById('customLanguageInput');
 
-// Scan View Elements
 const roomSelect = document.getElementById('roomSelect');
 const roomInput = document.getElementById('roomInput');
 const shelfSelect = document.getElementById('shelfSelect');
@@ -43,7 +42,6 @@ const totalLayersInput = document.getElementById('totalLayers');
 const shelfLayerSelect = document.getElementById('shelfLayer');
 const shotsPerLayerInput = document.getElementById('shotsPerLayer');
 
-// Setup View Elements (빠른 업로드)
 const setupRoomSelect = document.getElementById('setupRoomSelect');
 const setupRoomInput = document.getElementById('setupRoomInput');
 const setupShelfSelect = document.getElementById('setupShelfSelect');
@@ -55,18 +53,11 @@ const btnSetupPhoto = document.getElementById('btnSetupPhoto');
 const setupPreviewContainer = document.getElementById('setupPreviewContainer');
 const setupSaveBtn = document.getElementById('setupSaveBtn');
 
-// Manage View Elements (데이터 관리)
 const manageRoomSelect = document.getElementById('manageRoomSelect');
 const manageShelfSelect = document.getElementById('manageShelfSelect');
 const manageLayerSelect = document.getElementById('manageLayerSelect');
 const executeDeleteBtn = document.getElementById('executeDeleteBtn');
 
-// Library (Search) View Elements
-const filterRoom = document.getElementById('filterRoom');
-const filterShelf = document.getElementById('filterShelf');
-const filterLayer = document.getElementById('filterLayer');
-
-// Edit Modal Elements
 const editModal = document.getElementById('editModal');
 const editTitleInput = document.getElementById('editTitle');
 const editAuthorInput = document.getElementById('editAuthor');
@@ -81,7 +72,6 @@ const cancelEditBtn = document.getElementById('cancelEditBtn');
 const viewPhotoInEditBtn = document.getElementById('viewPhotoInEditBtn');
 const deleteInEditBtn = document.getElementById('deleteInEditBtn');
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 let currentLang = 'en';
 window.currentLang = 'en'; 
 let currentEditingBookId = null;
@@ -99,7 +89,6 @@ initBookListModule({
 
 initGalleryModule();
 
-// 💡 책 모양 메뉴 애니메이션 클릭 핸들러
 window.handleBookClick = (element, viewId) => {
   if (element.classList.contains('active')) {
     window.switchView(viewId);
@@ -218,12 +207,8 @@ async function updateManageOptions() {
     });
     
     window._manageHierarchy = hierarchy;
-    
     manageRoomSelect.innerHTML = `<option value="ALL">${currentLang === 'ko' ? '방 선택...' : 'Select Room...'}</option>`;
-    Object.keys(hierarchy).forEach(room => {
-      manageRoomSelect.innerHTML += `<option value="${room}">${room}</option>`;
-    });
-    
+    Object.keys(hierarchy).forEach(room => { manageRoomSelect.innerHTML += `<option value="${room}">${room}</option>`; });
     manageRoomSelect.value = 'ALL';
     manageRoomSelect.dispatchEvent(new Event('change'));
   } catch(e) { console.error(e); }
@@ -340,26 +325,31 @@ function applyUiLanguage(lang) {
   setTxt('mainHeading', t.mainHeading);
   setTxt('lblUiLang', t.lblUiLang);
   
-  setTxt('spineSetupTitle', t.menuSetupTitle);
-  setTxt('spineScanTitle', t.menuScanTitle);
+  // 💡 메인 4개 메뉴 및 책등 바인딩
+  setTxt('spineSearchTitle', t.menuLibraryTitle);
   setTxt('spineGalleryTitle', t.menuGalleryTitle);
-  setTxt('spineSearchTitle', t.menuSearchTitle);
-  setTxt('spineBarcodeTitle', t.menuBarcodeTitle);
+  setTxt('spineBookInputTitle', t.menuBookInputTitle);
   setTxt('spineManageTitle', t.menuManageTitle);
 
-  setTxt('menuSetupTitle', t.menuSetupTitle);
-  setTxt('menuSetupDesc', t.menuSetupDesc);
-  setTxt('menuScanTitle', t.menuScanTitle);
-  setTxt('menuScanDesc', t.menuScanDesc);
+  setTxt('menuLibraryTitle', t.menuLibraryTitle);
+  setTxt('menuLibraryDesc', t.menuLibraryDesc);
   setTxt('menuGalleryTitle', t.menuGalleryTitle);
   setTxt('menuGalleryDesc', t.menuGalleryDesc);
-  setTxt('menuSearchTitle', t.menuSearchTitle);
-  setTxt('menuSearchDesc', t.menuSearchDesc);
-  setTxt('menuBarcodeTitle', t.menuBarcodeTitle);
-  setTxt('menuBarcodeDesc', t.menuBarcodeDesc);
+  setTxt('menuBookInputTitle', t.menuBookInputTitle);
+  setTxt('menuBookInputDesc', t.menuBookInputDesc);
   setTxt('menuManageTitle', t.menuManageTitle);
   setTxt('menuManageDesc', t.menuManageDesc);
-  
+
+  // Hub 텍스트
+  setTxt('hubViewTitle', t.hubViewTitle);
+  setTxt('hubViewDesc', t.hubViewDesc);
+  setTxt('hubSetupTitle', t.hubSetupTitle);
+  setTxt('hubSetupDesc', t.hubSetupDesc);
+  setTxt('hubScanTitle', t.hubScanTitle);
+  setTxt('hubScanDesc', t.hubScanDesc);
+  setTxt('hubBarcodeTitle', t.hubBarcodeTitle);
+  setTxt('hubBarcodeDesc', t.hubBarcodeDesc);
+
   setTxt('manageViewTitle', t.manageViewTitle);
   setTxt('manageViewDesc', t.manageViewDesc);
   if (executeDeleteBtn) executeDeleteBtn.textContent = t.btnDeleteScope;
@@ -401,11 +391,6 @@ function applyUiLanguage(lang) {
   setTxt('bcLayerLabel', t.bcLayerLabel);
   setTxt('bcPositionLabel', t.bcPositionLabel);
   setTxt('isbnLabel', t.isbnLabel);
-  
-  if (roomInput) roomInput.placeholder = currentLang === 'ko' ? '새 방 이름' : 'New room';
-  if (shelfInput) shelfInput.placeholder = currentLang === 'ko' ? '새 책장 이름' : 'New shelf';
-  if (setupRoomInput) setupRoomInput.placeholder = currentLang === 'ko' ? '새 방 이름' : 'New room';
-  if (setupShelfInput) setupShelfInput.placeholder = currentLang === 'ko' ? '새 책장 이름' : 'New shelf';
 
   updateLayerSelectOptions(totalLayersInput, shelfLayerSelect);
   updateLayerSelectOptions(setupTotalLayers, setupShelfLayer);
@@ -662,7 +647,6 @@ saveEditBtn?.addEventListener('click', async () => {
   finally { saveEditBtn.disabled = false; }
 });
 
-// 💡 수정 모달창 내부 사진보기(🖼️) 아이콘 기능
 viewPhotoInEditBtn?.addEventListener('click', async () => {
   if (!currentEditingBookId) return;
   const t = i18n[currentLang] || i18n['en'];
@@ -689,7 +673,6 @@ viewPhotoInEditBtn?.addEventListener('click', async () => {
   }
 });
 
-// 💡 수정 모달창 내부 삭제(🗑️) 아이콘 기능
 deleteInEditBtn?.addEventListener('click', async () => {
   if (!currentEditingBookId) return;
   const t = i18n[currentLang] || i18n['en'];

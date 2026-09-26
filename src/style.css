@@ -1,4 +1,4 @@
-/* src/style.css - Vintage Leather Grimoire (Elegant & Clean Edition) */
+/* src/style.css - Vintage Leather Grimoire (4-Book Main Menu Edition) */
 @import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
 
 body {
@@ -113,11 +113,11 @@ input[type="file"] {
 }
 
 /* ===================================================
-   📖 살아 숨쉬는 책장 애니메이션
+   📖 살아 숨쉬는 4권 책장 애니메이션
    =================================================== */
 .bookshelf-menu {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   height: 380px;
   align-items: flex-end;
   padding: 15px 10px;
@@ -146,10 +146,10 @@ input[type="file"] {
 }
 
 .menu-book:nth-child(2n) { height: 95%; background: linear-gradient(135deg, #3a2818, #1a0f08); }
-.menu-book:nth-child(3n) { height: 85%; background: linear-gradient(135deg, #5c3e2b, #2a1a10); }
+.menu-book:nth-child(3n) { height: 88%; background: linear-gradient(135deg, #5c3e2b, #2a1a10); }
 
 .menu-book.active {
-  flex: 5;
+  flex: 4; /* 4권 중 선택되었을 때 넓게 펼쳐짐 */
   height: 100%;
   border: 2px solid #5c4a3d;
   border-left: 20px solid #140d0a;
