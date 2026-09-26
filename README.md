@@ -1,6 +1,6 @@
 # 📚 Bookfinder PWA
 
-> A modern, responsive Progressive Web App (PWA) designed to seamlessly manage, search, and organize your personal library collection.<img width="1090" height="1594" alt="Screenshot 2026-09-27 005835" src="https://github.com/user-attachments/assets/7342989d-bfbd-4339-abb8-8c2bb378a040" />
+> A modern, responsive Progressive Web App (PWA) designed to seamlessly manage, search, and organize your personal library collection.<img width="545" height="797" alt="Screenshot 2026-09-27 005835" src="https://github.com/user-attachments/assets/7342989d-bfbd-4339-abb8-8c2bb378a040" />
 
 
 
