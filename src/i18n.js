@@ -119,6 +119,8 @@ export const i18n = {
     failed: "Failed/Not found",
 
     btnReanalyze: "Re-analyze",
+    btnReanalyzeShelf: "Analyze Entire Shelf",
+    confirmReanalyzeShelf: "Are you sure you want to batch analyze all layers in this bookcase? It might take some time.",
     reanalyzeRequested: "Analysis requested. Please wait until it completes.",
     reanalyzingStarted: "Starting re-analysis. Please wait...",
     reanalyzeSuccess: "Re-analysis successful! Books have been updated.",
@@ -243,6 +245,8 @@ export const i18n = {
     failed: "Fehlgeschlagen/Nicht gefunden",
 
     btnReanalyze: "Erneut analysieren",
+    btnReanalyzeShelf: "Ganzes Regal analysieren",
+    confirmReanalyzeShelf: "Möchten Sie wirklich alle Fächer dieses Regals auf einmal analysieren? Dies kann eine Weile dauern.",
     reanalyzeRequested: "Analyse angefordert. Bitte warten Sie, bis sie abgeschlossen ist.",
     reanalyzingStarted: "Erneute Analyse gestartet. Bitte warten...",
     reanalyzeSuccess: "Erneute Analyse erfolgreich! Bücher wurden aktualisiert.",
@@ -355,6 +359,8 @@ export const i18n = {
     failed: "실패/없음",
 
     btnReanalyze: "다시 분석하기",
+    btnReanalyzeShelf: "전체 일괄 분석",
+    confirmReanalyzeShelf: "이 책장의 모든 칸(Layer)을 순서대로 일괄 분석하시겠습니까? 다소 시간이 소요될 수 있습니다.",
     reanalyzeRequested: "분석을 의뢰했습니다. 완료될 때까지 잠시만 기다려주세요.",
     reanalyzingStarted: "재분석을 시작합니다. 잠시만 기다려주세요...",
     reanalyzeSuccess: "재분석 완료! 도서 목록이 업데이트되었습니다.",

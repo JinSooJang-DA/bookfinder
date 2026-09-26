@@ -89,7 +89,13 @@ export async function loadGalleryHierarchy() {
                 <h4>📚 ${escapeHtml(shelfName)}</h4>
                 <span class="shelf-stats-badge">${layers.length} Layers · ${totalBooksCount} Books</span>
               </div>
-              <button class="btn btn-danger btn-sm" onclick="window.deleteShelfScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}')">🗑️ Shelf</button>
+              <div style="display: flex; gap: 6px;">
+                <!-- 💡 책장 단위 전체 일괄 분석 버튼 추가 -->
+                <button class="btn btn-success btn-sm" onclick="window.reanalyzeShelfScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}')">
+                  🔍 ${t('btnReanalyzeShelf') || '전체 일괄 분석'}
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="window.deleteShelfScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}')">🗑️ Shelf</button>
+              </div>
             </div>
             <div class="shelf-board-rack">
         `;
@@ -167,7 +173,7 @@ export async function loadGalleryHierarchy() {
   }
 }
 
-// 💡 다중 이미지 묶음 전송 1회 호출 재분석 로직
+// 💡 단일 칸 재분석 함수
 window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
   const imageUrls = window.galleryPhotoStore[storeKey] || [];
   if (imageUrls.length === 0) return alert(t('noImageLocal'));
@@ -183,7 +189,6 @@ window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
     });
     const imageBlobs = await Promise.all(blobPromises);
 
-    // 단 1회 호출
     const newDetectedBooks = await analyzeBookshelfImage(imageBlobs, lang);
 
     if (!newDetectedBooks || newDetectedBooks.length === 0) {
@@ -230,6 +235,93 @@ window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
   } catch (error) {
     alert(t('failAnalyzeImage') || 'Failed to analyze image.');
   }
+};
+
+// 💡 책장 전체(모든 칸) 일괄 재분석 로직
+window.reanalyzeShelfScope = async (room, shelfName) => {
+  const prefix = `${room}___${shelfName}___`;
+  const layerKeys = Object.keys(window.galleryPhotoStore).filter(key => key.startsWith(prefix));
+
+  if (layerKeys.length === 0) {
+    return alert(t('noImageLocal') || 'No images found in this bookcase.');
+  }
+
+  if (!confirm(t('confirmReanalyzeShelf') || '이 책장의 모든 칸 이미지를 일괄 분석하시겠습니까? 약간의 시간이 소요될 수 있습니다.')) {
+    return;
+  }
+
+  alert(t('reanalyzeRequested') || '분석을 의뢰했습니다. 완료될 때까지 잠시만 기다려주세요.');
+  const lang = window.currentLang || 'en';
+  let successCount = 0;
+  let failCount = 0;
+
+  for (let i = 0; i < layerKeys.length; i++) {
+    const key = layerKeys[i];
+    const layerNum = key.split('___')[2];
+    const imageUrls = window.galleryPhotoStore[key];
+
+    if (!imageUrls || imageUrls.length === 0) continue;
+
+    try {
+      const blobPromises = imageUrls.map(async (url) => {
+        let response;
+        try { response = await fetch(url); } catch (e) { response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`); }
+        return await response.blob();
+      });
+      const imageBlobs = await Promise.all(blobPromises);
+
+      const newDetectedBooks = await analyzeBookshelfImage(imageBlobs, lang);
+
+      if (newDetectedBooks && newDetectedBooks.length > 0) {
+        // 기존 칸 데이터 삭제
+        const q = query(collection(db, "books"),
+          where("room", "==", room),
+          where("shelfName", "==", shelfName),
+          where("shelfLayer", "==", Number(layerNum))
+        );
+        const querySnapshot = await getDocs(q);
+        const deletePromises = [];
+        let totalLayers = 1;
+        querySnapshot.forEach((docSnap) => {
+          if (docSnap.data().totalLayers) totalLayers = docSnap.data().totalLayers;
+          deletePromises.push(deleteDoc(doc(db, "books", docSnap.id)));
+        });
+        await Promise.all(deletePromises);
+
+        // 새 분석 데이터 추가
+        const savePromises = newDetectedBooks.map((book, idx) => {
+          return addDoc(collection(db, "books"), {
+            title: book.title || 'Unknown Title',
+            author: book.author || 'Unknown Author',
+            language: book.language || 'original',
+            room: room,
+            shelfName: shelfName,
+            shelfLayer: Number(layerNum),
+            totalLayers: Number(totalLayers),
+            position: idx + 1,
+            imageUrls: imageUrls,
+            createdAt: serverTimestamp()
+          });
+        });
+        await Promise.all(savePromises);
+        successCount++;
+      } else {
+        failCount++;
+      }
+    } catch (err) {
+      console.error(`Layer ${layerNum} Error:`, err);
+      failCount++;
+    }
+
+    // 구글 API 무료 한도(15 RPM) 보호를 위해 각 칸을 분석한 후 4초 대기
+    if (i < layerKeys.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 4000));
+    }
+  }
+
+  alert(`${t('reanalyzeSuccess') || '분석 완료!'}\n- 성공: ${successCount}칸\n- 실패: ${failCount}칸`);
+  await loadGalleryHierarchy();
+  if (window._barcodeDeps && window._barcodeDeps.loadSavedBooks) window._barcodeDeps.loadSavedBooks();
 };
 
 window.toggleLayerAccordion = (room, shelfName, layer) => {
