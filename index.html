@@ -5,12 +5,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="appTitle">Bookshelf Scanner App</title>
-  <!-- 💡 절대 경로(/src/...)를 상대 경로(./src/...)로 변경 -->
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 
 <body>
-  <!-- 🔐 로그인 컨테이너 (로그인 전까지만 표시됨) -->
+  <!-- 🔐 로그인 컨테이너 -->
   <div id="authContainer" class="card" style="max-width: 400px; margin: 40px auto; padding: 20px;">
     <h2 style="margin-top: 0; text-align: center;">🔐 Bookshelf Login</h2>
     <p style="text-align: center; color: #666; font-size: 0.9rem;">Please log in to secure your data.</p>
@@ -26,7 +25,7 @@
     <button id="btnLogin" class="btn btn-success" style="width: 100%; margin-bottom: 8px;">Login</button>
   </div>
 
-  <!-- 🚀 메인 앱 전체 영역 (로그인 후에만 표시됨) -->
+  <!-- 🚀 메인 앱 전체 영역 -->
   <div id="appMainWrapper" style="display: none;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
       <h1 id="mainHeading" style="margin: 0;">📚 Bookshelf Scanner</h1>
@@ -167,13 +166,11 @@
         <h3 id="barcodeViewTitle" style="margin-top: 0;">📷 Barcode (ISBN) Individual Book Add</h3>
         <p id="barcodeDesc" style="color: #666; font-size: 0.9rem;">Specify the position where the book will be placed, then scan or enter the ISBN.</p>
 
-        <!-- 💡 Room Name을 select로 변경 -->
         <label for="bcRoomInput" id="bcRoomLabel">Room Name</label>
         <select id="bcRoomInput" style="margin-bottom: 8px; width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff;">
           <option value="Living Room">Living Room</option>
         </select>
 
-        <!-- 💡 Bookcase Name을 select로 변경 -->
         <label for="bcShelfInput" id="bcShelfLabel" style="margin-top: 6px;">Bookcase Name</label>
         <select id="bcShelfInput" style="margin-bottom: 8px; width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff;">
           <option value="Bookcase A">Bookcase A</option>
@@ -198,8 +195,20 @@
 
         <div style="display: flex; gap: 8px; margin-top: 4px;">
           <input type="text" id="isbnInput" placeholder="Enter or scan ISBN e.g. 97838321... " style="flex: 1;">
-          <button id="submitIsbnBtn" class="btn btn-success">➕ Add Book</button>
+          <button type="button" id="fetchIsbnBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap;">🔄 Fetch</button>
         </div>
+
+        <div style="margin-top: 10px;">
+          <label for="bcTitleInput" style="font-weight: bold;">Book Title</label>
+          <input type="text" id="bcTitleInput" placeholder="Title will appear here after scan">
+        </div>
+
+        <div style="margin-top: 4px;">
+          <label for="bcAuthorInput" style="font-weight: bold;">Author</label>
+          <input type="text" id="bcAuthorInput" placeholder="Author name">
+        </div>
+
+        <button id="submitIsbnBtn" class="btn btn-success" style="margin-top: 12px; width: 100%;">➕ Add Book</button>
       </div>
     </div>
 
@@ -230,9 +239,8 @@
         </div>
       </div>
     </div>
-  </div> <!-- // appMainWrapper 닫기 -->
+  </div>
 
-  <!-- 💡 절대 경로(/src/...)를 상대 경로(./src/...)로 변경 -->
   <script type="module" src="./src/main.js"></script>
 </body>
 

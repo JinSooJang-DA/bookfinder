@@ -10,7 +10,6 @@ import { escapeHtml } from './ui.js';
 import { i18n } from './i18n.js';
 import { autoFillMissingISBNs } from './enrichIsbn.js';
 
-// 언어 헬퍼 함수
 function t(key) {
   const lang = window.currentLang || 'en';
   return i18n[lang]?.[key] || i18n['en']?.[key] || key;
@@ -32,11 +31,12 @@ export function initBarcodeModule(deps) {
   bcPositionInput = document.getElementById('bcPositionInput');
   startLiveScanBtn = document.getElementById('startLiveScanBtn');
   stopLiveScanBtn = document.getElementById('stopLiveScanBtn');
+  fetchIsbnBtn = document.getElementById('fetchIsbnBtn');
+  bcTitleInput = document.getElementById('bcTitleInput');
+  bcAuthorInput = document.getElementById('bcAuthorInput');
 
-  // ----------------------------------------------------
-  // 1. UI 보완: 제목 및 작가 입력 필드/조회 버튼 동적 생성
-  // ----------------------------------------------------
-  ensureTitleAndAuthorInputs();
+  // DOM에 입력창이 없을 경우 자동 생성 보완
+  ensureBarcodeInputs();
 
   bcRoomInput?.addEventListener('change', loadBarcodeHierarchyOptions);
   bcShelfInput?.addEventListener('change', loadBarcodeHierarchyOptions);
@@ -47,30 +47,20 @@ export function initBarcodeModule(deps) {
     stopLiveScanBtn.addEventListener('click', stopScanner);
   }
 
-  // ISBN 정보 조회 버튼 이벤트
-  if (fetchIsbnBtn) {
-    fetchIsbnBtn.addEventListener('click', () => lookupIsbnInfo());
-  }
+  // ISBN 단독 수동 조회 버튼
+  fetchIsbnBtn?.addEventListener('click', () => lookupIsbnInfo());
 
-  // 등록 버튼 이벤트
+  // 최종 등록 버튼
   submitIsbnBtn?.addEventListener('click', handleAddIsbnBook);
 
-  // ----------------------------------------------------
-  // 2. 누락된 ISBN 일괄 자동 채우기 버튼 바인딩
-  // ----------------------------------------------------
+  // 누락된 ISBN 일괄 자동 채우기 버튼 바인딩
   autoFillIsbnBtn = document.getElementById('autoFillIsbnBtn');
   if (!autoFillIsbnBtn && barcodeView) {
     autoFillIsbnBtn = document.createElement('button');
     autoFillIsbnBtn.id = 'autoFillIsbnBtn';
+    autoFillIsbnBtn.className = 'btn btn-secondary';
     autoFillIsbnBtn.style.marginTop = '15px';
-    autoFillIsbnBtn.style.padding = '10px 15px';
-    autoFillIsbnBtn.style.width = '100%';
     autoFillIsbnBtn.style.backgroundColor = '#17a2b8';
-    autoFillIsbnBtn.style.color = '#fff';
-    autoFillIsbnBtn.style.border = 'none';
-    autoFillIsbnBtn.style.borderRadius = '5px';
-    autoFillIsbnBtn.style.cursor = 'pointer';
-    autoFillIsbnBtn.style.fontWeight = 'bold';
     barcodeView.appendChild(autoFillIsbnBtn);
   }
 
@@ -90,51 +80,43 @@ export function initBarcodeModule(deps) {
   window._barcodeDeps = { updateRoomDropdown, loadSavedBooks };
 }
 
-// HTML 내 제목/작가 입력 필드가 없을 경우 자동 생성하는 헬퍼 함수
-function ensureTitleAndAuthorInputs() {
+function ensureBarcodeInputs() {
   if (!barcodeView) return;
 
-  // ISBN 입력란 옆에 '조회' 버튼 추가
-  fetchIsbnBtn = document.getElementById('fetchIsbnBtn');
   if (!fetchIsbnBtn && isbnInput) {
     fetchIsbnBtn = document.createElement('button');
     fetchIsbnBtn.id = 'fetchIsbnBtn';
     fetchIsbnBtn.type = 'button';
-    fetchIsbnBtn.textContent = t('fetchIsbnBtn');
-    fetchIsbnBtn.style.marginLeft = '8px';
-    fetchIsbnBtn.style.padding = '6px 12px';
-    fetchIsbnBtn.style.cursor = 'pointer';
-    isbnInput.parentNode?.insertBefore(fetchIsbnBtn, isbnInput.nextSibling);
+    fetchIsbnBtn.className = 'btn btn-secondary btn-sm';
+    fetchIsbnBtn.textContent = t('fetchIsbnBtn') || '🔄 Fetch';
+    fetchIsbnBtn.style.whiteSpace = 'nowrap';
+    isbnInput.parentNode?.appendChild(fetchIsbnBtn);
   }
 
-  // 제목 입력 필드
-  bcTitleInput = document.getElementById('bcTitleInput');
   if (!bcTitleInput) {
     const titleGroup = document.createElement('div');
-    titleGroup.style.margin = '10px 0';
+    titleGroup.style.marginTop = '8px';
     titleGroup.innerHTML = `
-      <label style="display:block; margin-bottom:4px; font-weight:bold;">${t('scanViewTitle') || 'Title'}:</label>
-      <input type="text" id="bcTitleInput" style="width:100%; padding:8px; box-sizing:border-box;" placeholder="e.g. Harry Potter">
+      <label style="display:block; margin-bottom:4px; font-weight:bold;">Book Title:</label>
+      <input type="text" id="bcTitleInput" placeholder="Title will appear here after scan">
     `;
     submitIsbnBtn?.parentNode?.insertBefore(titleGroup, submitIsbnBtn);
     bcTitleInput = document.getElementById('bcTitleInput');
   }
 
-  // 작가 입력 필드
-  bcAuthorInput = document.getElementById('bcAuthorInput');
   if (!bcAuthorInput) {
     const authorGroup = document.createElement('div');
-    authorGroup.style.margin = '10px 0';
+    authorGroup.style.marginTop = '8px';
     authorGroup.innerHTML = `
       <label style="display:block; margin-bottom:4px; font-weight:bold;">Author:</label>
-      <input type="text" id="bcAuthorInput" style="width:100%; padding:8px; box-sizing:border-box;" placeholder="e.g. J.K. Rowling">
+      <input type="text" id="bcAuthorInput" placeholder="Author name">
     `;
     submitIsbnBtn?.parentNode?.insertBefore(authorGroup, submitIsbnBtn);
     bcAuthorInput = document.getElementById('bcAuthorInput');
   }
 }
 
-// ISBN으로 도서 정보 조회 후 Input 필드에 자동 입력
+// ISBN으로 책 정보 조회 후 폼에 기입
 async function lookupIsbnInfo(manualIsbn = null) {
   const rawIsbn = manualIsbn || isbnInput?.value.trim() || '';
   const isbn = rawIsbn.replace(/[^0-9X]/gi, '');
@@ -151,7 +133,7 @@ async function lookupIsbnInfo(manualIsbn = null) {
 
   try {
     const fetched = await fetchBookByISBN(isbn);
-    if (fetched && fetched.title && fetched.title !== 'Unknown Title') {
+    if (fetched && fetched.title) {
       if (bcTitleInput) bcTitleInput.value = fetched.title;
       if (bcAuthorInput) bcAuthorInput.value = fetched.author || '';
       alert(`${t('isbnFetchSuccess')}\n\n📖 ${fetched.title} (${fetched.author || 'Unknown'})`);
@@ -168,12 +150,12 @@ async function lookupIsbnInfo(manualIsbn = null) {
   } finally {
     if (fetchIsbnBtn) {
       fetchIsbnBtn.disabled = false;
-      fetchIsbnBtn.textContent = t('fetchIsbnBtn');
+      fetchIsbnBtn.textContent = t('fetchIsbnBtn') || '🔄 Fetch';
     }
   }
 }
 
-// 카메라 스캐너 시작
+// 실시간 바코드 스캔 시작
 async function startScanner() {
   const readerDiv = document.getElementById('reader');
   if (readerDiv) readerDiv.style.display = 'block';
@@ -196,7 +178,7 @@ async function startScanner() {
         
         stopScanner();
         
-        // 바코드 읽은 후 자동으로 책 정보 조회 실행
+        // 바코드 인식 즉시 도서 정보 검색 및 입력창 자동 기입 실행
         await lookupIsbnInfo(cleanIsbn);
       },
       () => {}
@@ -208,7 +190,7 @@ async function startScanner() {
   }
 }
 
-// 카메라 스캐너 정지
+// 실시간 바코드 스캔 중지
 export function stopScanner() {
   if (html5QrCode && html5QrCode.isScanning) {
     html5QrCode.stop().then(() => {}).catch(err => {
@@ -221,7 +203,7 @@ export function stopScanner() {
   if (stopLiveScanBtn) stopLiveScanBtn.style.display = 'none';
 }
 
-// 계층 구조 옵션 및 기존 도서 표시
+// 계층 구조 옵션 로드
 export async function loadBarcodeHierarchyOptions() {
   try {
     const querySnapshot = await getDocs(collection(db, "books"));
@@ -336,17 +318,37 @@ export async function loadBarcodeHierarchyOptions() {
   }
 }
 
-// 입력 필드의 정보로 도서 추가 및 위치 재정렬
+// 최종 도서 추가 및 위치 재정렬
 async function handleAddIsbnBook() {
   const rawIsbn = isbnInput?.value.trim() || '';
   const isbn = rawIsbn.replace(/[^0-9X]/gi, '');
-  const bookTitle = bcTitleInput?.value.trim() || '';
-  const bookAuthor = bcAuthorInput?.value.trim() || 'Unknown';
+  let bookTitle = bcTitleInput?.value.trim() || '';
+  let bookAuthor = bcAuthorInput?.value.trim() || 'Unknown';
 
-  if (!bookTitle) {
-    alert(t('updateTitleRoomRequired'));
-    bcTitleInput?.focus();
+  if (!isbn) {
+    alert(t('enterIsbnCode'));
     return;
+  }
+
+  // 제목이 비어 있는 경우 다시 한 번 조회를 시도
+  if (!bookTitle) {
+    const fetched = await fetchBookByISBN(isbn);
+    if (fetched && fetched.title) {
+      bookTitle = fetched.title;
+      bookAuthor = fetched.author || 'Unknown';
+      if (bcTitleInput) bcTitleInput.value = bookTitle;
+      if (bcAuthorInput) bcAuthorInput.value = bookAuthor;
+    } else {
+      // 조회되지 않는 경우 수동 입력 요구
+      const inputTitle = prompt(t('isbnLookupFailedPromptTitle'));
+      if (!inputTitle || !inputTitle.trim()) {
+        alert(t('titleRequiredCancel'));
+        return;
+      }
+      bookTitle = inputTitle.trim();
+      const inputAuthor = prompt(t('promptAuthor'));
+      bookAuthor = inputAuthor && inputAuthor.trim() ? inputAuthor.trim() : 'Unknown';
+    }
   }
 
   const room = bcRoomInput?.value.trim() || 'Living Room';
@@ -357,7 +359,6 @@ async function handleAddIsbnBook() {
   try {
     submitIsbnBtn.disabled = true;
 
-    // 위치 내 기존 도서 목록 가져오기
     const q = query(
       collection(db, "books"),
       where("room", "==", room),
@@ -372,7 +373,6 @@ async function handleAddIsbnBook() {
 
     existingBooks.sort((a, b) => (a.position || 0) - (b.position || 0));
 
-    // 새 도서 객체 생성 및 위치 재정렬
     const newBookData = {
       title: bookTitle,
       author: bookAuthor,
@@ -397,12 +397,11 @@ async function handleAddIsbnBook() {
       finalBooksList.push({ ...newBookData, position: targetPosition });
     }
 
-    // Firestore에 일괄 업데이트/추가
     for (let i = 0; i < finalBooksList.length; i++) {
       const item = finalBooksList[i];
       const newPos = i + 1;
       if (item.id) {
-        await updateDoc(doc(doc(db, "books", item.id)), { position: newPos });
+        await updateDoc(doc(db, "books", item.id), { position: newPos });
       } else {
         await addDoc(collection(db, "books"), {
           ...item,
@@ -414,13 +413,11 @@ async function handleAddIsbnBook() {
 
     alert(`${t('saveAndReorderSuccess')}\n"${bookTitle}" - ${bookAuthor}`);
 
-    // 입력 필드 초기화
     if (isbnInput) isbnInput.value = '';
     if (bcTitleInput) bcTitleInput.value = '';
     if (bcAuthorInput) bcAuthorInput.value = '';
     if (bcPositionInput) bcPositionInput.value = targetPosition + 1;
 
-    // 앱 화면 및 뷰 갱신
     if (window._barcodeDeps) {
       await window._barcodeDeps.updateRoomDropdown();
       window._barcodeDeps.loadSavedBooks();

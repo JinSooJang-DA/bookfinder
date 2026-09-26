@@ -10,7 +10,7 @@ function t(key) {
 }
 
 /**
- * ISBN이 누락된 모든 책을 찾아 역추적으로 ISBN을 업데이트하는 일괄 작업 함수
+ * 누락된 ISBN 일괄 자동 채우기
  */
 export async function autoFillMissingISBNs(statusCallback) {
   try {
@@ -19,7 +19,6 @@ export async function autoFillMissingISBNs(statusCallback) {
 
     querySnapshot.forEach(docSnap => {
       const data = docSnap.data();
-      // isbn 필드가 없거나 빈 문자열인 경우 대상에 추가
       if (!data.isbn || data.isbn.trim() === '') {
         missingIsbnBooks.push({ id: docSnap.id, ...data });
       }
@@ -54,14 +53,13 @@ export async function autoFillMissingISBNs(statusCallback) {
         failCount++;
       }
 
-      // API Rate Limit 방지용 딜레이 (0.3초)
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // API Rate Limit 방지를 위한 1.5초 딜레이
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
     const resultMsg = `${t('isbnFillComplete')}\n- ${t('success')}: ${successCount}\n- ${t('failed')}: ${failCount}`;
     alert(resultMsg);
 
-    // 변경된 데이터를UI에 반영하기 위해 새로고침 콜백 호출
     if (window._barcodeDeps && window._barcodeDeps.loadSavedBooks) {
       window._barcodeDeps.loadSavedBooks();
     }

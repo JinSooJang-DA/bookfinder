@@ -16,7 +16,6 @@ import { analyzeBookshelfImage, fetchBookByISBN } from './api.js';
 import { renderScannedBooks } from './ui.js';
 import { saveImageToImgBB } from './storage.js';
 
-// 외부 모듈 불러오기
 import { initBarcodeModule, loadBarcodeHierarchyOptions, stopScanner } from './barcode.js';
 import { initBookListModule, updateRoomDropdown, loadSavedBooks } from './booklist.js';
 import { initGalleryModule, loadGalleryHierarchy } from './gallery.js';
@@ -67,6 +66,7 @@ const cancelEditBtn = document.getElementById('cancelEditBtn');
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 let currentLang = 'en';
+window.currentLang = 'en'; // 전역 언어 상태 동기화
 let currentEditingBookId = null;
 
 // Multi-shot session state
@@ -74,7 +74,6 @@ let currentShotIndex = 0;
 let accumulatedBooks = [];
 let accumulatedFiles = [];
 
-// 모듈 초기화 연결
 initBookListModule({
   getCurrentLang: () => currentLang,
   openEditModalCallback: openEditModal
@@ -82,7 +81,6 @@ initBookListModule({
 
 initGalleryModule();
 
-// 🔐 Authentication State Observer and View Transition Logic
 onAuthStateChanged(auth, (user) => {
   if (user) {
     if (authContainer) authContainer.style.display = 'none';
@@ -101,7 +99,6 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// Login Button Event
 btnLogin?.addEventListener('click', async () => {
   const email = authEmailInput?.value.trim() || '';
   const password = authPasswordInput?.value.trim() || '';
@@ -116,7 +113,6 @@ btnLogin?.addEventListener('click', async () => {
   }
 });
 
-// Register Button Event
 btnRegister?.addEventListener('click', async () => {
   const email = authEmailInput?.value.trim() || '';
   const password = authPasswordInput?.value.trim() || '';
@@ -132,7 +128,6 @@ btnRegister?.addEventListener('click', async () => {
   }
 });
 
-// Logout Button Event
 btnLogout?.addEventListener('click', async () => {
   try {
     await signOut(auth);
@@ -141,9 +136,9 @@ btnLogout?.addEventListener('click', async () => {
   }
 });
 
-// 1. Switch App UI Language
 uiLanguageSelect?.addEventListener('change', (e) => {
   currentLang = e.target.value;
+  window.currentLang = currentLang;
   applyUiLanguage(currentLang);
 });
 
@@ -181,6 +176,7 @@ window.switchView = (viewId) => {
 
 function applyUiLanguage(lang) {
   const t = i18n[lang] || i18n['en'];
+  window.currentLang = lang;
   
   const setTxt = (id, text) => {
     const el = document.getElementById(id);
@@ -235,6 +231,12 @@ function applyUiLanguage(lang) {
   
   const submitIsbnBtnEl = document.getElementById('submitIsbnBtn');
   if (submitIsbnBtnEl) submitIsbnBtnEl.textContent = t.submitIsbnBtn;
+
+  const fetchIsbnBtnEl = document.getElementById('fetchIsbnBtn');
+  if (fetchIsbnBtnEl) fetchIsbnBtnEl.textContent = t.fetchIsbnBtn || '🔄 Fetch';
+
+  const autoFillBtn = document.getElementById('autoFillIsbnBtn');
+  if (autoFillBtn) autoFillBtn.textContent = t.btnAutoFillIsbn;
 
   updateLayerSelectOptions();
   updateRoomDropdown();
@@ -338,7 +340,6 @@ cameraInput?.addEventListener('change', async (event) => {
   }
 });
 
-// 💾 [수정됨] ImgBB 업로드 및 Firestore에 imageUrls 명시적 저장
 saveBtn?.addEventListener('click', async () => {
   const t = i18n[currentLang] || i18n['en'];
   if (accumulatedBooks.length === 0) return;
@@ -351,7 +352,6 @@ saveBtn?.addEventListener('click', async () => {
   try {
     saveBtn.disabled = true;
 
-    // 1. 캡처된 파일들을 ImgBB 클라우드로 업로드하여 공개 URL 목록 추출
     const imageUrls = [];
     for (const file of accumulatedFiles) {
       const uploadedUrl = await saveImageToImgBB(file);
@@ -360,7 +360,6 @@ saveBtn?.addEventListener('click', async () => {
       }
     }
 
-    // 2. Firestore에 gallery.js 호환 필드명(imageUrls)으로 도서 정보와 함께 저장
     const savePromises = accumulatedBooks.map(book => {
       return addDoc(collection(db, "books"), {
         title: book.title || 'Unknown Title',
@@ -371,7 +370,7 @@ saveBtn?.addEventListener('click', async () => {
         shelfLayer: Number(shelfLayer),
         totalLayers: Number(totalLayers),
         position: Number(book.position) || 1,
-        imageUrls: imageUrls, // gallery.js 및 백엔드 스키마와 100% 호환되는 필드명
+        imageUrls: imageUrls,
         createdAt: serverTimestamp()
       });
     });
@@ -420,9 +419,13 @@ fetchIsbnInModal?.addEventListener('click', async () => {
   try {
     if (fetchIsbnInModal) fetchIsbnInModal.textContent = 'Fetching...';
     const info = await fetchBookByISBN(isbn);
-    if (editTitleInput) editTitleInput.value = info.title;
-    if (editAuthorInput) editAuthorInput.value = info.author;
-    alert('Book info updated via ISBN!');
+    if (info && info.title) {
+      if (editTitleInput) editTitleInput.value = info.title;
+      if (editAuthorInput) editAuthorInput.value = info.author || '';
+      alert('Book info updated via ISBN!');
+    } else {
+      alert('Could not fetch book info for this ISBN.');
+    }
   } catch (err) {
     alert('Could not fetch book info for this ISBN.');
   } finally {
@@ -506,4 +509,5 @@ deleteGroupBtn?.addEventListener('click', async () => {
   }
 });
 
+window.currentLang = 'en';
 applyUiLanguage('en');

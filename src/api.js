@@ -1,7 +1,7 @@
 // src/api.js
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GOOGLE_BOOKS_API_KEY = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY || '';
 
-// File 또는 Blob 객체가 전달되어도 Base64 텍스트로 자동 변환하는 함수
 function ensureBase64(input) {
   if (typeof input === 'string') return Promise.resolve(input);
   return new Promise((resolve, reject) => {
@@ -12,14 +12,12 @@ function ensureBase64(input) {
   });
 }
 
-// 지정된 밀리초(ms)만큼 대기하는 지연 헬퍼 함수
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * 책장 이미지를 분석하여 도서 제목과 작가명을 추출하는 함수 (재시도 로직 포함)
+ * Gemini AI 책장 이미지 분석
  */
 export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retryCount = 0) {
-  // 문자열이든 File 객체든 안전하게 Base64 텍스트로 전환
   const base64Data = await ensureBase64(imageInput);
   const cleanBase64 = base64Data.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
 
@@ -39,10 +37,9 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
       })
     });
 
-    // 429(요청 과도) 또는 5xx(서버 에러) 발생 시 지연 후 재시도
     if ((response.status === 429 || response.status >= 500) && retryCount < 3) {
-      const waitTime = (retryCount + 1) * 2000; // 2초, 4초, 6초 지연
-      console.warn(`[Gemini API ${response.status}] ${waitTime / 1000}초 후 재시도합니다... (${retryCount + 1}/3)`);
+      const waitTime = (retryCount + 1) * 2000;
+      console.warn(`[Gemini API ${response.status}] ${waitTime / 1000}초 후 재시도... (${retryCount + 1}/3)`);
       await delay(waitTime);
       return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
     }
@@ -61,7 +58,6 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
   } catch (error) {
     if (retryCount < 3 && !error.message?.includes('HTTP 400')) {
       const waitTime = (retryCount + 1) * 2000;
-      console.warn(`[Gemini API 요청 실패] ${waitTime / 1000}초 후 재시도합니다... (${retryCount + 1}/3)`, error);
       await delay(waitTime);
       return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
     }
@@ -70,49 +66,98 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
 }
 
 /**
- * ISBN으로 OpenLibrary에서 책 정보 조회 (재시도 로직 포함)
+ * ISBN으로 책 정보 조회 (Google Books 1차 조회 -> Open Library 2차 조회)
  */
-export async function fetchBookByISBN(isbn, retryCount = 0) {
-  const cleanIsbn = isbn.replace(/[^0-9X]/gi, '');
-  if (!cleanIsbn) {
-    return { title: 'Unknown Title', author: 'Unknown', isbn: '' };
+export async function fetchBookByISBN(isbn) {
+  const cleanIsbn = isbn.replace(/[^0-9X]/gi, '').trim();
+  if (!cleanIsbn) return null;
+
+  // 1차: Google Books API 조회 (독일, 한국 및 글로벌 도서 지원 최적화)
+  try {
+    let googleUrl = `[https://www.googleapis.com/books/v1/volumes?q=isbn:$](https://www.googleapis.com/books/v1/volumes?q=isbn:$){cleanIsbn}`;
+    if (GOOGLE_BOOKS_API_KEY) {
+      googleUrl += `&key=${GOOGLE_BOOKS_API_KEY}`;
+    }
+
+    const res = await fetch(googleUrl);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.totalItems > 0 && data.items && data.items[0]?.volumeInfo) {
+        const info = data.items[0].volumeInfo;
+        return {
+          title: info.title || '',
+          author: info.authors ? info.authors.join(', ') : 'Unknown',
+          isbn: cleanIsbn
+        };
+      }
+    }
+  } catch (err) {
+    console.warn(`[Google Books 조회 실패] ISBN: ${cleanIsbn}`, err);
   }
 
+  // 2차: Open Library API 백업 조회
   try {
-    const res = await fetch(`[https://openlibrary.org/api/books?bibkeys=ISBN:$](https://openlibrary.org/api/books?bibkeys=ISBN:$){cleanIsbn}&format=json&jscmd=data`);
-    
-    if (res.status === 429 && retryCount < 3) {
-      const waitTime = (retryCount + 1) * 2000;
-      console.warn(`[OpenLibrary 429] ${waitTime / 1000}초 후 재시도합니다... (${retryCount + 1}/3)`);
-      await delay(waitTime);
-      return await fetchBookByISBN(isbn, retryCount + 1);
+    const olRes = await fetch(`[https://openlibrary.org/api/books?bibkeys=ISBN:$](https://openlibrary.org/api/books?bibkeys=ISBN:$){cleanIsbn}&format=json&jscmd=data`);
+    if (olRes.ok) {
+      const olData = await olRes.json();
+      const bookKey = `ISBN:${cleanIsbn}`;
+      if (olData[bookKey]) {
+        const book = olData[bookKey];
+        return {
+          title: book.title || '',
+          author: book.authors ? book.authors.map(a => a.name).join(', ') : 'Unknown',
+          isbn: cleanIsbn
+        };
+      }
     }
+  } catch (olErr) {
+    console.warn(`[Open Library 조회 실패] ISBN: ${cleanIsbn}`, olErr);
+  }
 
-    if (!res.ok) {
-      return { title: `Book (${cleanIsbn})`, author: 'Unknown', isbn: cleanIsbn };
-    }
+  // 검색 결과가 없는 경우 null 반환 (임의의 더미 텍스트를 반환하지 않음)
+  return null;
+}
 
-    const data = await res.json();
-    const book = data[`ISBN:${cleanIsbn}`];
+/**
+ * Open Library Search API를 활용한 ISBN 역검색
+ */
+async function fetchISBNFromOpenLibrary(title, author = '') {
+  try {
+    const cleanTitle = title.replace(/[[\]()]/g, '').trim();
+    const cleanAuthor = author && author !== 'Unknown' ? author.replace(/[[\]()]/g, '').trim() : '';
     
-    return {
-      title: book?.title || `Book (${cleanIsbn})`,
-      author: book?.authors?.map(a => a.name).join(', ') || 'Unknown',
-      isbn: cleanIsbn
-    };
-  } catch (error) {
-    console.error(`OpenLibrary fetch failed for ISBN ${cleanIsbn}:`, error);
-    return { title: `Book (${cleanIsbn})`, author: 'Unknown', isbn: cleanIsbn };
+    let url = `[https://openlibrary.org/search.json?title=$](https://openlibrary.org/search.json?title=$){encodeURIComponent(cleanTitle)}`;
+    if (cleanAuthor) {
+      url += `&author=${encodeURIComponent(cleanAuthor)}`;
+    }
+    url += `&limit=3`;
+
+    const response = await fetch(url);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (!data.docs || data.docs.length === 0) return null;
+
+    for (const doc of data.docs) {
+      if (doc.isbn && doc.isbn.length > 0) {
+        const isbn13 = doc.isbn.find(i => i.length === 13);
+        const targetIsbn = isbn13 || doc.isbn[0];
+        return targetIsbn.replace(/[^0-9X]/gi, '');
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error(`OpenLibrary Search failed for "${title}":`, err);
+    return null;
   }
 }
 
 /**
- * 제목과 작가로 Google Books API에서 ISBN을 역검색하는 함수 (429 지연 재시도 포함)
+ * 제목과 작가로 ISBN 역검색 (Google Books ➔ Open Library)
  */
 export async function fetchISBNByTitleAuthor(title, author = '', retryCount = 0) {
   if (!title) return null;
 
-  // 특수문자 제거 및 쿼리 구성
   const cleanTitle = title.replace(/[[\]()]/g, '').trim();
   const cleanAuthor = author && author !== 'Unknown' ? author.replace(/[[\]()]/g, '').trim() : '';
   
@@ -121,40 +166,42 @@ export async function fetchISBNByTitleAuthor(title, author = '', retryCount = 0)
     query += `+inauthor:${encodeURIComponent(cleanAuthor)}`;
   }
 
-  try {
-    const response = await fetch(`[https://www.googleapis.com/books/v1/volumes?q=$](https://www.googleapis.com/books/v1/volumes?q=$){query}&maxResults=3`);
+  let googleUrl = `[https://www.googleapis.com/books/v1/volumes?q=$](https://www.googleapis.com/books/v1/volumes?q=$){query}&maxResults=3`;
+  if (GOOGLE_BOOKS_API_KEY) {
+    googleUrl += `&key=${GOOGLE_BOOKS_API_KEY}`;
+  }
 
-    // 429 Too Many Requests 발생 시 대기 후 재시도 (최대 3회)
-    if (response.status === 429) {
-      if (retryCount < 3) {
-        const waitTime = (retryCount + 1) * 2000; // 2초, 4초, 6초 지연
-        console.warn(`[Google Books 429 Too Many Requests] ${waitTime / 1000}초 후 재시도합니다... (${retryCount + 1}/3)`);
-        await delay(waitTime);
+  try {
+    const response = await fetch(googleUrl);
+
+    if (response.status === 429 || response.status === 403) {
+      if (retryCount < 1) {
+        await delay(1500);
         return await fetchISBNByTitleAuthor(title, author, retryCount + 1);
-      } else {
-        console.error(`Max retries reached for "${title}" due to rate limits.`);
-        return null;
       }
+      return await fetchISBNFromOpenLibrary(title, author);
     }
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return await fetchISBNFromOpenLibrary(title, author);
+    }
 
     const data = await response.json();
-    if (!data.items || data.items.length === 0) return null;
+    if (!data.items || data.items.length === 0) {
+      return await fetchISBNFromOpenLibrary(title, author);
+    }
 
-    // 검색 결과 중 ISBN_13 또는 ISBN_10 추출
     for (const item of data.items) {
       const identifiers = item.volumeInfo?.industryIdentifiers || [];
       const isbnObj = identifiers.find(i => i.type === 'ISBN_13') || identifiers.find(i => i.type === 'ISBN_10');
       
       if (isbnObj && isbnObj.identifier) {
-        // 숫자 및 X만 정제하여 반환
         return isbnObj.identifier.replace(/[^0-9X]/gi, '');
       }
     }
-    return null;
+
+    return await fetchISBNFromOpenLibrary(title, author);
   } catch (error) {
-    console.error(`ISBN search failed for "${title}":`, error);
-    return null;
+    return await fetchISBNFromOpenLibrary(title, author);
   }
 }
