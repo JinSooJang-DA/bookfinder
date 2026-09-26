@@ -20,7 +20,6 @@ import { initBarcodeModule, loadBarcodeHierarchyOptions, stopScanner } from './b
 import { initBookListModule, updateRoomDropdown, loadSavedBooks } from './booklist.js';
 import { initGalleryModule, loadGalleryHierarchy } from './gallery.js';
 
-// DOM Elements (Auth)
 const authContainer = document.getElementById('authContainer');
 const appMainWrapper = document.getElementById('appMainWrapper');
 const authEmailInput = document.getElementById('authEmail');
@@ -29,7 +28,6 @@ const btnLogin = document.getElementById('btnLogin');
 const btnRegister = document.getElementById('btnRegister');
 const btnLogout = document.getElementById('btnLogout');
 
-// DOM Elements (Main App)
 const uiLanguageSelect = document.getElementById('uiLanguageSelect');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const customLanguageInput = document.getElementById('customLanguageInput');
@@ -51,7 +49,6 @@ const filterShelf = document.getElementById('filterShelf');
 const filterLayer = document.getElementById('filterLayer');
 const deleteGroupBtn = document.getElementById('deleteGroupBtn');
 
-// Edit Modal Elements
 const editModal = document.getElementById('editModal');
 const editTitleInput = document.getElementById('editTitle');
 const editAuthorInput = document.getElementById('editAuthor');
@@ -66,10 +63,9 @@ const cancelEditBtn = document.getElementById('cancelEditBtn');
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 let currentLang = 'en';
-window.currentLang = 'en'; // 전역 언어 상태 동기화
+window.currentLang = 'en'; 
 let currentEditingBookId = null;
 
-// Multi-shot session state
 let currentShotIndex = 0;
 let accumulatedBooks = [];
 let accumulatedFiles = [];
@@ -283,6 +279,7 @@ shotsPerLayerInput?.addEventListener('change', resetShotSession);
 cameraInput?.addEventListener('change', async (event) => {
   const file = event.target.files[0];
   if (!file) return;
+  const tStr = i18n[currentLang] || i18n['en'];
 
   const totalShots = parseInt(shotsPerLayerInput?.value) || 1;
   currentShotIndex++;
@@ -323,26 +320,31 @@ cameraInput?.addEventListener('change', async (event) => {
     accumulatedBooks.forEach((book, idx) => {
       book.position = idx + 1;
     });
-
-    if (currentShotIndex < totalShots) {
-      alert(`${i18n[currentLang]?.shotProgress || 'Shot saved.'} (${currentShotIndex + 1}/${totalShots})`);
-      if (loading) loading.style.display = 'none';
-      cameraInput.value = '';
-    } else {
-      if (loading) loading.style.display = 'none';
-      renderScannedBooks(accumulatedBooks, resultCard, bookList);
-    }
-
   } catch (error) {
     console.error('Analysis Error:', error);
-    alert('Failed to analyze image.');
-    if (loading) loading.style.display = 'none';
+    // 에러 발생 시 알림만 띄우고 파일 저장 프로세스는 멈추지 않음
+    alert(tStr.analyzeFailedKeepPhoto || 'Analysis failed. The photo is kept and can be saved to the gallery.');
+  }
+
+  if (loading) loading.style.display = 'none';
+  
+  if (currentShotIndex < totalShots) {
+    alert(`${tStr.shotProgress || 'Shot saved.'} (${currentShotIndex}/${totalShots})`);
+    cameraInput.value = '';
+  } else {
+    renderScannedBooks(accumulatedBooks, resultCard, bookList);
+    // 만약 책이 0권이어도 사진이 있으면 저장할 수 있다는 안내 추가
+    if (accumulatedBooks.length === 0) {
+      resultCard.style.display = 'block';
+      bookList.innerHTML = `<p style="text-align:center; color:#666; font-size:0.9rem; padding:10px;">${tStr.noBooksDetected || 'No books detected. You can still save the photo to the gallery.'}</p>`;
+    }
   }
 });
 
 saveBtn?.addEventListener('click', async () => {
   const t = i18n[currentLang] || i18n['en'];
-  if (accumulatedBooks.length === 0) return;
+  // 책 배열도 비어있고, 사진 파일도 아무것도 없으면 리턴
+  if (accumulatedBooks.length === 0 && accumulatedFiles.length === 0) return;
 
   const room = document.getElementById('roomInput')?.value.trim() || 'Living Room';
   const shelfName = document.getElementById('shelfName')?.value.trim() || 'Bookcase A';
@@ -360,7 +362,18 @@ saveBtn?.addEventListener('click', async () => {
       }
     }
 
-    const savePromises = accumulatedBooks.map(book => {
+    // 분석 실패/인식 불가로 책 정보가 0권이지만 사진이 있는 경우 미분석 가상 데이터 하나 생성
+    let booksToSave = accumulatedBooks;
+    if (booksToSave.length === 0 && imageUrls.length > 0) {
+      booksToSave = [{
+        title: t.unanalyzedShelf || 'Unanalyzed Shelf',
+        author: '-',
+        position: 1,
+        language: 'original'
+      }];
+    }
+
+    const savePromises = booksToSave.map(book => {
       return addDoc(collection(db, "books"), {
         title: book.title || 'Unknown Title',
         author: book.author || 'Unknown Author',

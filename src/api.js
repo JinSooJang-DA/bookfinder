@@ -16,6 +16,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Gemini AI 책장 이미지 분석
+ * 503(서버 과부하) 및 429(속도 제한) 발생 시 최대 4회 자동 재시도 (2s -> 4s -> 8s)
  */
 export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retryCount = 0) {
   const base64Data = await ensureBase64(imageInput);
@@ -33,13 +34,17 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
             { text: prompt },
             { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
           ]
-        }]
+        }],
+        generationConfig: {
+          response_mime_type: "application/json"
+        }
       })
     });
 
-    if ((response.status === 429 || response.status >= 500) && retryCount < 3) {
-      const waitTime = (retryCount + 1) * 2000;
-      console.warn(`[Gemini API ${response.status}] ${waitTime / 1000}초 후 재시도... (${retryCount + 1}/3)`);
+    // 503(서버 과부하), 429(Rate Limit), 500(내부 서버 에러) 발생 시 대기 후 재시도
+    if ((response.status === 503 || response.status === 429 || response.status >= 500) && retryCount < 4) {
+      const waitTime = Math.pow(2, retryCount + 1) * 1000; // 2초 -> 4초 -> 8초 -> 16초
+      console.warn(`[Gemini 서버 과부하 ${response.status}] ${waitTime / 1000}초 후 자동으로 다시 시도합니다... (${retryCount + 1}/4)`);
       await delay(waitTime);
       return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
     }
@@ -47,6 +52,14 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
     const data = await response.json();
 
     if (!response.ok || data.error) {
+      // JSON 에러 응답 내부에 503 코드가 들어있는 경우 처리
+      if ((data.error?.code === 503 || data.error?.status === 'UNAVAILABLE') && retryCount < 4) {
+        const waitTime = Math.pow(2, retryCount + 1) * 1000;
+        console.warn(`[Gemini Model Overloaded] ${waitTime / 1000}초 후 다시 시도합니다... (${retryCount + 1}/4)`);
+        await delay(waitTime);
+        return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
+      }
+
       console.error("Gemini API Error Detail:", data.error || data);
       throw new Error(data.error?.message || `HTTP ${response.status}`);
     }
@@ -56,8 +69,9 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
     
     return JSON.parse(text);
   } catch (error) {
-    if (retryCount < 3 && !error.message?.includes('HTTP 400')) {
-      const waitTime = (retryCount + 1) * 2000;
+    if (retryCount < 4 && (error.message?.includes('503') || error.message?.includes('high demand') || error.message?.includes('UNAVAILABLE'))) {
+      const waitTime = Math.pow(2, retryCount + 1) * 1000;
+      console.warn(`[Gemini 일시적 에러] ${waitTime / 1000}초 후 다시 시도합니다... (${retryCount + 1}/4)`);
       await delay(waitTime);
       return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
     }
@@ -66,13 +80,12 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
 }
 
 /**
- * ISBN으로 책 정보 조회 (Google Books 1차 조회 -> Open Library 2차 조회)
+ * ISBN으로 책 정보 조회 (Google Books 1차 -> Open Library 2차)
  */
 export async function fetchBookByISBN(isbn) {
   const cleanIsbn = isbn.replace(/[^0-9X]/gi, '').trim();
   if (!cleanIsbn) return null;
 
-  // 1차: Google Books API 조회 (독일, 한국 및 글로벌 도서 지원 최적화)
   try {
     let googleUrl = `[https://www.googleapis.com/books/v1/volumes?q=isbn:$](https://www.googleapis.com/books/v1/volumes?q=isbn:$){cleanIsbn}`;
     if (GOOGLE_BOOKS_API_KEY) {
@@ -95,7 +108,6 @@ export async function fetchBookByISBN(isbn) {
     console.warn(`[Google Books 조회 실패] ISBN: ${cleanIsbn}`, err);
   }
 
-  // 2차: Open Library API 백업 조회
   try {
     const olRes = await fetch(`[https://openlibrary.org/api/books?bibkeys=ISBN:$](https://openlibrary.org/api/books?bibkeys=ISBN:$){cleanIsbn}&format=json&jscmd=data`);
     if (olRes.ok) {
@@ -114,7 +126,6 @@ export async function fetchBookByISBN(isbn) {
     console.warn(`[Open Library 조회 실패] ISBN: ${cleanIsbn}`, olErr);
   }
 
-  // 검색 결과가 없는 경우 null 반환 (임의의 더미 텍스트를 반환하지 않음)
   return null;
 }
 
@@ -153,7 +164,7 @@ async function fetchISBNFromOpenLibrary(title, author = '') {
 }
 
 /**
- * 제목과 작가로 ISBN 역검색 (Google Books ➔ Open Library)
+ * 제목과 작가로 ISBN 역검색 (Google Books -> Open Library)
  */
 export async function fetchISBNByTitleAuthor(title, author = '', retryCount = 0) {
   if (!title) return null;

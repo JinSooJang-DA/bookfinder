@@ -106,7 +106,8 @@
           <input type="number" id="shotsPerLayer" min="1" max="5" value="1">
         </div>
 
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+        <!-- 💡 capture="environment" 제거: 스마트폰에서 갤러리 업로드 또는 촬영 선택 가능 -->
+        <input type="file" id="cameraInput" accept="image/*" style="display: none;">
         <button class="btn btn-secondary" id="btnPhoto" onclick="document.getElementById('cameraInput').click()" style="margin-top: 12px; width: 100%;">📸 Photograph Shelf Layer</button>
       </div>
 

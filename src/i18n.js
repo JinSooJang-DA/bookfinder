@@ -5,7 +5,6 @@ export const i18n = {
     mainHeading: "📚 Bookshelf Scanner",
     lblUiLang: "🌐 Language",
 
-    // 메인 대시보드 메뉴
     menuScanTitle: "📖 Book Input",
     menuScanDesc: "(Scan & Register)",
     menuGalleryTitle: "🖼️ Gallery",
@@ -16,7 +15,6 @@ export const i18n = {
     menuBarcodeDesc: "(Add Individual Book)",
     backToMenu: "⬅️ Back to Menu",
 
-    // 1. 책 입력 뷰
     scanViewTitle: "📖 Book Input & Scan",
     lblTargetLang: "Book Title Output Language",
     roomInputLabel: "Room Name",
@@ -24,16 +22,17 @@ export const i18n = {
     lblTotalLayers: "Total Layers",
     lblCurrentLayer: "Current Layer",
     lblShotsCount: "Photos per Layer (Multi-shot)",
-    btnPhoto: "📸 Photograph Shelf Layer",
+    btnPhoto: "📸 Take / Upload Photo",
     txtLoading: "🔍 Analyzing book spines... Please wait.",
     txtDetectedBooks: "Detected Books",
     saveBtn: "💾 Save to Database",
+    analyzeFailedKeepPhoto: "Analysis failed. The photo is kept and can be saved to the gallery.",
+    noBooksDetected: "No books detected. You can still save the photo to the gallery.",
+    unanalyzedShelf: "Unanalyzed Shelf",
 
-    // 2. 갤러리 뷰
     galleryViewTitle: "🖼️ Bookshelf Gallery",
     galleryPlaceholder: "Bookshelf photo gallery will be displayed here.",
 
-    // 3. 도서 검색 뷰
     searchViewTitle: "📖 Book Search & Inventory",
     lblSearch: "🔍 Search Books",
     searchPlaceholder: "Search by title or author...",
@@ -43,7 +42,6 @@ export const i18n = {
     allLayers: "All Layers",
     deleteGroupBtn: "🗑️ Delete Selected Scope",
 
-    // 4. 바코드 입력 뷰
     barcodeViewTitle: "📷 Barcode (ISBN) Individual Book Add",
     barcodeDesc: "Specify the position where the book will be placed, then enter the ISBN.",
     bcRoomLabel: "Room Name",
@@ -66,7 +64,6 @@ export const i18n = {
     reorderTip: "💡 To insert a new book between existing books, specify the target position number.",
     noBooksInFach: "📍 No books registered in the selected room/shelf/layer.",
 
-    // 공통 및 알림 텍스트
     layerPrefix: "Layer",
     top: "(Top)",
     bottom: "(Bottom)",
@@ -78,14 +75,12 @@ export const i18n = {
     alertSelectRoomFirst: "Please select a specific room first.",
     shotProgress: "Photo captured. Please take photo ",
 
-    // 인증 및 로그인 관련
     authEmailPasswordRequired: "Please enter both email and password.",
     authRegisterRequired: "Please enter email and password for registration.",
     loginFailed: "Login failed: ",
     registerSuccess: "Account created successfully and you are now logged in.",
     registerFailed: "Registration failed: ",
 
-    // 도서 수정 모달 및 ISBN 관련
     enterIsbnFirst: "Please enter an ISBN first.",
     fetchingIsbn: "Fetching...",
     fetchIsbnBtn: "🔄 Fetch Info via ISBN",
@@ -96,7 +91,6 @@ export const i18n = {
     failSaveBook: "Failed to save books.",
     failAnalyzeImage: "Failed to analyze image.",
 
-    // 갤러리 및 삭제 관련
     galleryLoading: "Loading bookshelf gallery...",
     galleryEmpty: "No bookshelf records found in database yet.",
     galleryError: "Failed to load gallery hierarchy.",
@@ -123,7 +117,6 @@ export const i18n = {
     mainHeading: "📚 Bücherregal-Scanner",
     lblUiLang: "🌐 Sprache",
 
-    // 메인 대시보드 메뉴
     menuScanTitle: "📖 Bücher erfassen",
     menuScanDesc: "(Scannen & Registrieren)",
     menuGalleryTitle: "🖼️ Galerie",
@@ -134,7 +127,6 @@ export const i18n = {
     menuBarcodeDesc: "(Einzelnes Buch hinzufügen)",
     backToMenu: "⬅️ Zurück zum Menü",
 
-    // 1. 책 입력 뷰
     scanViewTitle: "📖 Bücher erfassen & scannen",
     lblTargetLang: "Ausgabesprache für Buchtitel",
     roomInputLabel: "Raumname",
@@ -142,16 +134,17 @@ export const i18n = {
     lblTotalLayers: "Gesamte Fächer",
     lblCurrentLayer: "Aktuelles Fach",
     lblShotsCount: "Fotos pro Fach (Multi-Aufnahme)",
-    btnPhoto: "📸 Regalfach fotografieren",
+    btnPhoto: "📸 Foto aufnehmen / hochladen",
     txtLoading: "🔍 Buchrücken werden analysiert... Bitte warten.",
     txtDetectedBooks: "Erkannte Bücher",
     saveBtn: "💾 In Datenbank speichern",
+    analyzeFailedKeepPhoto: "Analyse fehlgeschlagen. Das Foto bleibt erhalten und kann in der Galerie gespeichert werden.",
+    noBooksDetected: "Keine Bücher erkannt. Sie können das Foto trotzdem in der Galerie speichern.",
+    unanalyzedShelf: "Nicht analysiertes Regal",
 
-    // 2. 갤러리 뷰
     galleryViewTitle: "🖼️ Regalfach-Galerie",
     galleryPlaceholder: "Die Regalfoto-Galerie wird hier angezeigt.",
 
-    // 3. 도서 검색 뷰
     searchViewTitle: "📖 Buchsuche & Bestand",
     lblSearch: "🔍 Bücher suchen",
     searchPlaceholder: "Nach Titel oder Autor suchen...",
@@ -161,7 +154,6 @@ export const i18n = {
     allLayers: "Alle Fächer",
     deleteGroupBtn: "🗑️ Ausgewählten Bereich löschen",
 
-    // 4. 바코드 입력 뷰
     barcodeViewTitle: "📷 Barcode (ISBN) Einzelnes Buch hinzufügen",
     barcodeDesc: "Geben Sie den Ablageort an und scannen/tippen Sie dann die ISBN ein.",
     bcRoomLabel: "Raumname",
@@ -184,7 +176,6 @@ export const i18n = {
     reorderTip: "💡 Um ein neues Buch dazwischen einzufügen, geben Sie die gewünschte Positionsnummer an.",
     noBooksInFach: "📍 Keine Bücher im ausgewählten Fach registriert.",
 
-    // 공통 및 알림 텍스트
     layerPrefix: "Fach",
     top: "(Oben)",
     bottom: "(Unten)",
@@ -196,14 +187,12 @@ export const i18n = {
     alertSelectRoomFirst: "Bitte wählen Sie zuerst einen bestimmten Raum aus.",
     shotProgress: "Foto gespeichert. Bitte machen Sie Foto ",
 
-    // 인증 및 로그인 관련
     authEmailPasswordRequired: "Bitte geben Sie E-Mail und Passwort ein.",
     authRegisterRequired: "Bitte geben Sie E-Mail und Passwort für die Registrierung ein.",
     loginFailed: "Anmeldung fehlgeschlagen: ",
     registerSuccess: "Konto erfolgreich erstellt und Sie sind jetzt angemeldet.",
     registerFailed: "Registrierung fehlgeschlagen: ",
 
-    // 도서 수정 모달 및 ISBN 관련
     enterIsbnFirst: "Bitte geben Sie zuerst eine ISBN ein.",
     fetchingIsbn: "Wird geladen...",
     fetchIsbnBtn: "🔄 Info via ISBN abrufen",
@@ -223,7 +212,6 @@ export const i18n = {
     success: "Erfolgreich",
     failed: "Fehlgeschlagen/Nicht gefunden",
 
-    // 갤러리 및 삭제 관련
     galleryLoading: "Regalgalerie wird geladen...",
     galleryEmpty: "Noch keine Regaleinträge in der Datenbank gefunden.",
     galleryError: "Fehler beim Laden der Galeriehierarchie.",
@@ -241,7 +229,6 @@ export const i18n = {
     mainHeading: "📚 책장 스캐너",
     lblUiLang: "🌐 언어 설정",
 
-    // 메인 대시보드 메뉴
     menuScanTitle: "📖 책 입력",
     menuScanDesc: "(스캔 및 등록)",
     menuGalleryTitle: "🖼️ 갤러리",
@@ -252,7 +239,6 @@ export const i18n = {
     menuBarcodeDesc: "(개별 도서 추가)",
     backToMenu: "⬅️ 메인 메뉴로 돌아가기",
 
-    // 1. 책 입력 뷰
     scanViewTitle: "📖 책 입력 및 스캔",
     lblTargetLang: "도서 제목 출력 언어",
     roomInputLabel: "방 이름",
@@ -260,16 +246,17 @@ export const i18n = {
     lblTotalLayers: "총 칸 수",
     lblCurrentLayer: "현재 칸",
     lblShotsCount: "칸당 촬영 장수 (분할 촬영)",
-    btnPhoto: "📸 책장 칸 촬영하기",
+    btnPhoto: "📸 사진 촬영 / 갤러리 업로드",
     txtLoading: "🔍 책 등 분석 중... 잠시만 기다려주세요.",
     txtDetectedBooks: "감지된 책 목록",
     saveBtn: "💾 데이터베이스에 저장",
+    analyzeFailedKeepPhoto: "분석에 실패했습니다. 사진은 유지되며 갤러리에 저장할 수 있습니다.",
+    noBooksDetected: "감지된 책이 없습니다. 하지만 사진은 갤러리에 저장할 수 있습니다.",
+    unanalyzedShelf: "미분석 책장",
 
-    // 2. 갤러리 뷰
     galleryViewTitle: "🖼️ 책장 갤러리",
     galleryPlaceholder: "책장별 사진 갤러리가 여기에 표시됩니다.",
 
-    // 3. 도서 검색 뷰
     searchViewTitle: "📖 도서 검색 및 인벤토리",
     lblSearch: "🔍 도서 검색",
     searchPlaceholder: "제목 또는 저자로 검색...",
@@ -279,7 +266,6 @@ export const i18n = {
     allLayers: "모든 칸",
     deleteGroupBtn: "🗑️ 선택 영역 전체 삭제",
 
-    // 4. 바코드 입력 뷰
     barcodeViewTitle: "📷 바코드(ISBN) 개별 도서 추가",
     barcodeDesc: "먼저 책이 꽂힐 위치를 지정한 뒤 ISBN을 입력하세요.",
     bcRoomLabel: "방 이름",
@@ -302,7 +288,6 @@ export const i18n = {
     reorderTip: "💡 기존 도서 사이에 새 책을 끼워 넣으려면 대상 위치 번호를 지정하세요.",
     noBooksInFach: "📍 선택한 영역에 등록된 도서가 없습니다.",
 
-    // 공통 및 알림 텍스트
     layerPrefix: "칸",
     top: "(맨 위)",
     bottom: "(맨 아래)",
@@ -314,14 +299,12 @@ export const i18n = {
     alertSelectRoomFirst: "먼저 특정 방을 선택해 주세요.",
     shotProgress: "사진이 저장되었습니다. 다음 사진을 촬영하세요: ",
 
-    // 인증 및 로그인 관련
     authEmailPasswordRequired: "이메일과 비밀번호를 모두 입력해 주세요.",
     authRegisterRequired: "회원가입을 위해 이메일과 비밀번호를 입력해 주세요.",
     loginFailed: "로그인 실패: ",
     registerSuccess: "계정이 성공적으로 생성되었으며 현재 로그인되어 있습니다.",
     registerFailed: "회원가입 실패: ",
 
-    // 도서 수정 모달 및 ISBN 관련
     enterIsbnFirst: "먼저 ISBN을 입력해 주세요.",
     fetchingIsbn: "가져오는 중...",
     fetchIsbnBtn: "🔄 ISBN으로 정보 가져오기",
@@ -341,7 +324,6 @@ export const i18n = {
     success: "성공",
     failed: "실패/없음",
 
-    // 갤러리 및 삭제 관련
     galleryLoading: "책장 갤러리를 불러오는 중...",
     galleryEmpty: "데이터베이스에 등록된 책장 기록이 없습니다.",
     galleryError: "갤러리 계층 구조를 불러오는 데 실패했습니다.",
