@@ -11,23 +11,21 @@ export const i18n = {
     menuScanDesc: "(Upload & Register)",
     menuGalleryTitle: "Gallery",
     menuGalleryDesc: "(Batch Re-analyze)",
-    menuSearchTitle: "Search Books",
+    // 💡 Search Books -> Library
+    menuSearchTitle: "Library",
     menuSearchDesc: "(Inventory Lookup)",
     menuBarcodeTitle: "Barcode Input",
     menuBarcodeDesc: "(Add Individual Book)",
-    
     menuManageTitle: "Site Management",
     menuManageDesc: "(Language & Data)",
+    
     manageViewTitle: "Site Management",
     manageViewDesc: "Select a specific room, bookcase, or layer to delete its records entirely.",
     btnDeleteScope: "Delete Selected Scope",
-
     backToMenu: "Back to Menu",
-
     setupViewTitle: "Basic Shelf Setup",
     setupViewDesc: "Quickly save multiple photos to the gallery without waiting for analysis.",
     btnSetupPhoto: "Select Multiple Photos",
-    
     scanViewTitle: "Book Input & Scan",
     lblTargetLang: "Book Title Output Language",
     roomInputLabel: "Room Name",
@@ -42,12 +40,11 @@ export const i18n = {
     analyzeFailedKeepPhoto: "Analysis failed. The photo is kept and can be saved to the gallery.",
     noBooksDetected: "No books detected. You can still save the photo to the gallery.",
     unanalyzedShelf: "Unanalyzed Shelf",
-
     galleryViewTitle: "Bookshelf Gallery",
     galleryPlaceholder: "Bookshelf photo gallery will be displayed here.",
 
-    searchViewTitle: "Book Search & Inventory",
-    lblSearch: "Search Books",
+    searchViewTitle: "Library",
+    lblSearch: "Library",
     searchPlaceholder: "Search by title or author...",
     lblFilterGroup: "Filter Options",
     allRooms: "All Rooms",
@@ -86,13 +83,11 @@ export const i18n = {
     alertSuccessUpdate: "Successfully updated!",
     alertSelectRoomFirst: "Please select a specific room first.",
     shotProgress: "Photo captured. Please take photo ",
-
     authEmailPasswordRequired: "Please enter both email and password.",
     authRegisterRequired: "Please enter email and password for registration.",
     loginFailed: "Login failed: ",
     registerSuccess: "Account created successfully and you are now logged in.",
     registerFailed: "Registration failed: ",
-
     enterIsbnFirst: "Please enter an ISBN first.",
     fetchingIsbn: "Fetching...",
     fetchIsbnBtn: "Fetch Info via ISBN",
@@ -102,13 +97,11 @@ export const i18n = {
     failUpdateBook: "Failed to update book information.",
     failSaveBook: "Failed to save books.",
     failAnalyzeImage: "Failed to analyze image.",
-
     galleryLoading: "Loading bookshelf gallery...",
     galleryEmpty: "No bookshelf records found in database yet.",
     galleryError: "Failed to load gallery hierarchy.",
     noPhoto: "No photo",
     noImageLocal: "No image files found locally.",
-
     noMissingIsbnFound: "All registered books already have ISBNs.",
     confirmAutoFillIsbn: " books do not have ISBNs. Do you want to automatically search and fill them in?",
     searchingIsbn: "Searching ISBN...",
@@ -117,7 +110,6 @@ export const i18n = {
     btnAutoFillIsbn: "Auto-Fill Missing ISBNs",
     success: "Success",
     failed: "Failed/Not found",
-
     btnReanalyze: "Re-analyze",
     btnReanalyzeShelf: "Analyze Entire Shelf",
     confirmReanalyzeShelf: "Are you sure you want to batch analyze all layers in this bookcase? It might take some time.",
@@ -137,23 +129,20 @@ export const i18n = {
     menuScanDesc: "(Upload & Registrieren)",
     menuGalleryTitle: "Galerie",
     menuGalleryDesc: "(Stapel-Analyse)",
-    menuSearchTitle: "Bücher suchen",
+    menuSearchTitle: "Bibliothek",
     menuSearchDesc: "(Bestand durchsuchen)",
     menuBarcodeTitle: "Barcode-Eingabe",
     menuBarcodeDesc: "(Einzelnes Buch hinzufügen)",
-    
     menuManageTitle: "Site-Management",
     menuManageDesc: "(Sprache & Daten)",
+    
     manageViewTitle: "Site-Management",
     manageViewDesc: "Wählen Sie einen Raum, ein Regal oder ein Fach aus, um dessen Einträge vollständig zu löschen.",
     btnDeleteScope: "Ausgewählten Bereich löschen",
-
     backToMenu: "Zurück zum Menü",
-
     setupViewTitle: "Regal-Grundkonfiguration",
     setupViewDesc: "Speichern Sie mehrere Fotos schnell in der Galerie, ohne auf die Analyse zu warten.",
     btnSetupPhoto: "Mehrere Fotos auswählen",
-
     scanViewTitle: "Bücher erfassen & scannen",
     lblTargetLang: "Ausgabesprache für Buchtitel",
     roomInputLabel: "Raumname",
@@ -168,12 +157,11 @@ export const i18n = {
     analyzeFailedKeepPhoto: "Analyse fehlgeschlagen. Das Foto bleibt erhalten und kann in der Galerie gespeichert werden.",
     noBooksDetected: "Keine Bücher erkannt. Sie können das Foto trotzdem in der Galerie speichern.",
     unanalyzedShelf: "Nicht analysiertes Regal",
-
     galleryViewTitle: "Regalfach-Galerie",
     galleryPlaceholder: "Die Regalfoto-Galerie wird hier angezeigt.",
 
-    searchViewTitle: "Buchsuche & Bestand",
-    lblSearch: "Bücher suchen",
+    searchViewTitle: "Bibliothek",
+    lblSearch: "Bibliothek",
     searchPlaceholder: "Nach Titel oder Autor suchen...",
     lblFilterGroup: "Filteroptionen",
     allRooms: "Alle Räume",
@@ -212,13 +200,11 @@ export const i18n = {
     alertSuccessUpdate: "Erfolgreich aktualisiert!",
     alertSelectRoomFirst: "Bitte wählen Sie zuerst einen bestimmten Raum aus.",
     shotProgress: "Foto gespeichert. Bitte machen Sie Foto ",
-
     authEmailPasswordRequired: "Bitte geben Sie E-Mail und Passwort ein.",
     authRegisterRequired: "Bitte geben Sie E-Mail und Passwort für die Registrierung ein.",
     loginFailed: "Anmeldung fehlgeschlagen: ",
     registerSuccess: "Konto erfolgreich erstellt und Sie sind jetzt angemeldet.",
     registerFailed: "Registrierung fehlgeschlagen: ",
-
     enterIsbnFirst: "Bitte geben Sie zuerst eine ISBN ein.",
     fetchingIsbn: "Wird geladen...",
     fetchIsbnBtn: "Info via ISBN abrufen",
@@ -228,13 +214,11 @@ export const i18n = {
     failUpdateBook: "Aktualisierung der Buchinformationen fehlgeschlagen.",
     failSaveBook: "Speichern der Bücher fehlgeschlagen.",
     failAnalyzeImage: "Bildanalyse fehlgeschlagen.",
-
     galleryLoading: "Regalgalerie wird geladen...",
     galleryEmpty: "Noch keine Regaleinträge in der Datenbank gefunden.",
     galleryError: "Fehler beim Laden der Galeriehierarchie.",
     noPhoto: "Kein Foto",
     noImageLocal: "Keine Bilddateien lokal gefunden.",
-
     noMissingIsbnFound: "Alle registrierten Bücher haben bereits eine ISBN.",
     confirmAutoFillIsbn: " Bücher haben keine ISBN. Möchten Sie diese automatisch suchen und ergänzen?",
     searchingIsbn: "ISBN wird gesucht...",
@@ -243,7 +227,6 @@ export const i18n = {
     btnAutoFillIsbn: "Fehlende ISBNs ergänzen",
     success: "Erfolgreich",
     failed: "Fehlgeschlagen/Nicht gefunden",
-
     btnReanalyze: "Erneut analysieren",
     btnReanalyzeShelf: "Ganzes Regal analysieren",
     confirmReanalyzeShelf: "Möchten Sie wirklich alle Fächer dieses Regals auf einmal analysieren? Dies kann eine Weile dauern.",
@@ -263,23 +246,21 @@ export const i18n = {
     menuScanDesc: "(업로드 & 즉시 등록)",
     menuGalleryTitle: "갤러리",
     menuGalleryDesc: "(묶음 재분석 지원)",
-    menuSearchTitle: "도서 검색",
+    // 💡 도서 검색 -> 라이브러리
+    menuSearchTitle: "라이브러리",
     menuSearchDesc: "(인벤토리 조회)",
     menuBarcodeTitle: "바코드 입력",
     menuBarcodeDesc: "(개별 도서 추가)",
-
     menuManageTitle: "사이트 관리",
     menuManageDesc: "(언어 및 데이터)",
+    
     manageViewTitle: "사이트 관리",
     manageViewDesc: "삭제할 방, 책장 또는 칸을 선택하면 해당 영역의 데이터가 전체 삭제됩니다.",
     btnDeleteScope: "선택 영역 전체 삭제",
-
     backToMenu: "메인 메뉴로 돌아가기",
-
     setupViewTitle: "책장 기본 사진 구성",
     setupViewDesc: "분석 대기 없이 다중 사진만 갤러리에 빠르게 저장합니다.",
     btnSetupPhoto: "사진 다중 선택 / 촬영",
-
     scanViewTitle: "책 입력 및 스캔",
     lblTargetLang: "도서 제목 출력 언어",
     roomInputLabel: "방 이름",
@@ -294,12 +275,11 @@ export const i18n = {
     analyzeFailedKeepPhoto: "분석에 실패했습니다. 사진은 유지되며 갤러리에 저장할 수 있습니다.",
     noBooksDetected: "감지된 책이 없습니다. 하지만 사진은 갤러리에 저장할 수 있습니다.",
     unanalyzedShelf: "미분석 책장",
-
     galleryViewTitle: "책장 갤러리",
     galleryPlaceholder: "책장별 사진 갤러리가 여기에 표시됩니다.",
 
-    searchViewTitle: "도서 검색 및 인벤토리",
-    lblSearch: "도서 검색",
+    searchViewTitle: "라이브러리",
+    lblSearch: "라이브러리",
     searchPlaceholder: "제목 또는 저자로 검색...",
     lblFilterGroup: "필터 옵션",
     allRooms: "모든 방",
@@ -338,13 +318,11 @@ export const i18n = {
     alertSuccessUpdate: "성공적으로 수정되었습니다!",
     alertSelectRoomFirst: "먼저 특정 방을 선택해 주세요.",
     shotProgress: "사진이 저장되었습니다. 다음 사진을 촬영하세요: ",
-
     authEmailPasswordRequired: "이메일과 비밀번호를 모두 입력해 주세요.",
     authRegisterRequired: "회원가입을 위해 이메일과 비밀번호를 입력해 주세요.",
     loginFailed: "로그인 실패: ",
     registerSuccess: "계정이 성공적으로 생성되었으며 현재 로그인되어 있습니다.",
     registerFailed: "회원가입 실패: ",
-
     enterIsbnFirst: "먼저 ISBN을 입력해 주세요.",
     fetchingIsbn: "가져오는 중...",
     fetchIsbnBtn: "ISBN으로 정보 가져오기",
@@ -354,13 +332,11 @@ export const i18n = {
     failUpdateBook: "도서 정보 업데이트에 실패했습니다.",
     failSaveBook: "도서 저장에 실패했습니다.",
     failAnalyzeImage: "이미지 분석에 실패했습니다.",
-
     galleryLoading: "책장 갤러리를 불러오는 중...",
     galleryEmpty: "데이터베이스에 등록된 책장 기록이 없습니다.",
     galleryError: "갤러리 계층 구조를 불러오는 데 실패했습니다.",
     noPhoto: "사진 없음",
     noImageLocal: "로컬에 저장된 이미지 파일이 없습니다.",
-
     noMissingIsbnFound: "ISBN이 누락된 도서가 없습니다. 모두 등록되어 있습니다.",
     confirmAutoFillIsbn: "권의 도서에 ISBN이 없습니다. 자동으로 검색하여 채워 넣으시겠습니까?",
     searchingIsbn: "ISBN 검색 중...",
@@ -369,7 +345,6 @@ export const i18n = {
     btnAutoFillIsbn: "누락된 ISBN 일괄 자동 채우기",
     success: "성공",
     failed: "실패/없음",
-
     btnReanalyze: "다시 분석하기",
     btnReanalyzeShelf: "전체 일괄 분석",
     confirmReanalyzeShelf: "이 책장의 모든 칸(Layer)을 순서대로 일괄 분석하시겠습니까? 다소 시간이 소요될 수 있습니다.",

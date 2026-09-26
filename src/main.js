@@ -3,7 +3,7 @@ import './style.css';
 import { db, auth } from './firebase.js';
 import { 
   collection, query, 
-  doc, updateDoc, where, serverTimestamp, addDoc, getDocs, deleteDoc 
+  doc, updateDoc, where, serverTimestamp, addDoc, getDocs, deleteDoc, getDoc 
 } from 'firebase/firestore';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { i18n } from './i18n.js';
@@ -27,6 +27,7 @@ const uiLanguageSelect = document.getElementById('uiLanguageSelect');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const customLanguageInput = document.getElementById('customLanguageInput');
 
+// Scan View Elements
 const roomSelect = document.getElementById('roomSelect');
 const roomInput = document.getElementById('roomInput');
 const shelfSelect = document.getElementById('shelfSelect');
@@ -42,6 +43,7 @@ const totalLayersInput = document.getElementById('totalLayers');
 const shelfLayerSelect = document.getElementById('shelfLayer');
 const shotsPerLayerInput = document.getElementById('shotsPerLayer');
 
+// Setup View Elements (빠른 업로드)
 const setupRoomSelect = document.getElementById('setupRoomSelect');
 const setupRoomInput = document.getElementById('setupRoomInput');
 const setupShelfSelect = document.getElementById('setupShelfSelect');
@@ -53,15 +55,18 @@ const btnSetupPhoto = document.getElementById('btnSetupPhoto');
 const setupPreviewContainer = document.getElementById('setupPreviewContainer');
 const setupSaveBtn = document.getElementById('setupSaveBtn');
 
+// Manage View Elements (데이터 관리)
 const manageRoomSelect = document.getElementById('manageRoomSelect');
 const manageShelfSelect = document.getElementById('manageShelfSelect');
 const manageLayerSelect = document.getElementById('manageLayerSelect');
 const executeDeleteBtn = document.getElementById('executeDeleteBtn');
 
+// Library (Search) View Elements
 const filterRoom = document.getElementById('filterRoom');
 const filterShelf = document.getElementById('filterShelf');
 const filterLayer = document.getElementById('filterLayer');
 
+// Edit Modal Elements
 const editModal = document.getElementById('editModal');
 const editTitleInput = document.getElementById('editTitle');
 const editAuthorInput = document.getElementById('editAuthor');
@@ -73,6 +78,8 @@ const editLayerInput = document.getElementById('editLayer');
 const editPositionInput = document.getElementById('editPosition');
 const saveEditBtn = document.getElementById('saveEditBtn');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
+const viewPhotoInEditBtn = document.getElementById('viewPhotoInEditBtn');
+const deleteInEditBtn = document.getElementById('deleteInEditBtn');
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 let currentLang = 'en';
@@ -92,13 +99,11 @@ initBookListModule({
 
 initGalleryModule();
 
-// 💡 책장 메뉴 클릭 시 펼침 애니메이션 처리 로직
+// 💡 책 모양 메뉴 애니메이션 클릭 핸들러
 window.handleBookClick = (element, viewId) => {
-  // 이미 활성화된(펼쳐진) 책을 클릭하면 실제 뷰로 이동
   if (element.classList.contains('active')) {
     window.switchView(viewId);
   } else {
-    // 닫힌 책을 클릭하면 다른 책들은 닫고 선택한 책만 스르륵 펼침 (Flex-grow transition)
     document.querySelectorAll('.menu-book').forEach(book => book.classList.remove('active'));
     element.classList.add('active');
   }
@@ -200,7 +205,6 @@ setupShelfSelect?.addEventListener('change', () => handleShelfChange(setupShelfS
 async function updateManageOptions() {
   try {
     if (!manageRoomSelect) return;
-    const t = i18n[currentLang] || i18n['en'];
     const querySnapshot = await getDocs(collection(db, "books"));
     const hierarchy = {};
     querySnapshot.forEach(docSnap => {
@@ -336,7 +340,6 @@ function applyUiLanguage(lang) {
   setTxt('mainHeading', t.mainHeading);
   setTxt('lblUiLang', t.lblUiLang);
   
-  // 💡 메뉴 제목 뿐만 아니라 닫혀있는 세로 책등(Spine)의 언어도 완벽하게 갱신
   setTxt('spineSetupTitle', t.menuSetupTitle);
   setTxt('spineScanTitle', t.menuScanTitle);
   setTxt('spineGalleryTitle', t.menuGalleryTitle);
@@ -354,9 +357,9 @@ function applyUiLanguage(lang) {
   setTxt('menuSearchDesc', t.menuSearchDesc);
   setTxt('menuBarcodeTitle', t.menuBarcodeTitle);
   setTxt('menuBarcodeDesc', t.menuBarcodeDesc);
-  
   setTxt('menuManageTitle', t.menuManageTitle);
   setTxt('menuManageDesc', t.menuManageDesc);
+  
   setTxt('manageViewTitle', t.manageViewTitle);
   setTxt('manageViewDesc', t.manageViewDesc);
   if (executeDeleteBtn) executeDeleteBtn.textContent = t.btnDeleteScope;
@@ -455,7 +458,6 @@ setupCameraInput?.addEventListener('change', (e) => {
 setupSaveBtn?.addEventListener('click', async () => {
   if (setupFiles.length === 0) return;
   const t = i18n[currentLang] || i18n['en'];
-
   const room = setupRoomSelect?.value === '__NEW__' ? setupRoomInput?.value.trim() : setupRoomSelect?.value;
   const shelfName = setupShelfSelect?.value === '__NEW__' ? setupShelfInput?.value.trim() : setupShelfSelect?.value;
   const shelfLayer = setupShelfLayer ? setupShelfLayer.value : 1;
@@ -464,13 +466,11 @@ setupSaveBtn?.addEventListener('click', async () => {
   try {
     setupSaveBtn.disabled = true;
     setupSaveBtn.textContent = 'Uploading...';
-
     const imageUrls = [];
     for (const file of setupFiles) {
       const url = await saveImageToImgBB(file);
       if (url) imageUrls.push(url);
     }
-
     await addDoc(collection(db, "books"), {
       title: t.unanalyzedShelf || 'Unanalyzed Shelf',
       author: '-',
@@ -492,9 +492,7 @@ setupSaveBtn?.addEventListener('click', async () => {
     await updateRoomDropdown();
     updateScanOptions(); 
     loadSavedBooks();
-  } catch (error) {
-    alert('Upload failed.');
-  } finally {
+  } catch (error) { alert('Upload failed.'); } finally {
     setupSaveBtn.disabled = false;
     setupSaveBtn.textContent = t.saveBtn;
   }
@@ -514,7 +512,6 @@ cameraInput?.addEventListener('change', async (event) => {
   const file = event.target.files[0];
   if (!file) return;
   const tStr = i18n[currentLang] || i18n['en'];
-
   const totalShots = parseInt(shotsPerLayerInput?.value) || 1;
   currentShotIndex++;
   accumulatedFiles.push(file);
@@ -544,9 +541,7 @@ cameraInput?.addEventListener('change', async (event) => {
       if (!isDuplicate) accumulatedBooks.push(newBook);
     });
     accumulatedBooks.forEach((book, idx) => book.position = idx + 1);
-  } catch (error) {
-    alert(tStr.analyzeFailedKeepPhoto || 'Analysis failed. The photo is kept.');
-  }
+  } catch (error) { alert(tStr.analyzeFailedKeepPhoto || 'Analysis failed. The photo is kept.'); }
 
   if (loading) loading.style.display = 'none';
   
@@ -578,12 +573,10 @@ saveBtn?.addEventListener('click', async () => {
       const uploadedUrl = await saveImageToImgBB(file);
       if (uploadedUrl) imageUrls.push(uploadedUrl);
     }
-
     let booksToSave = accumulatedBooks;
     if (booksToSave.length === 0 && imageUrls.length > 0) {
       booksToSave = [{ title: t.unanalyzedShelf, author: '-', position: 1, language: 'original' }];
     }
-
     const savePromises = booksToSave.map(book => {
       return addDoc(collection(db, "books"), {
         title: book.title || 'Unknown Title',
@@ -606,11 +599,7 @@ saveBtn?.addEventListener('click', async () => {
     await updateRoomDropdown();
     updateScanOptions(); 
     loadSavedBooks();
-  } catch (error) {
-    alert('Failed to save books.');
-  } finally {
-    saveBtn.disabled = false;
-  }
+  } catch (error) { alert('Failed to save books.'); } finally { saveBtn.disabled = false; }
 });
 
 function openEditModal(bookId, title, author, room, shelf, layer, position, isbn) {
@@ -641,11 +630,8 @@ fetchIsbnInModal?.addEventListener('click', async () => {
       if (editAuthorInput) editAuthorInput.value = info.author || '';
       alert('Book info updated via ISBN!');
     } else alert('Could not fetch book info.');
-  } catch (err) {
-    alert('Could not fetch book info.');
-  } finally {
-    if (fetchIsbnInModal) fetchIsbnInModal.textContent = 'Fetch Info via ISBN';
-  }
+  } catch (err) { alert('Could not fetch book info.'); } 
+  finally { if (fetchIsbnInModal) fetchIsbnInModal.textContent = 'Fetch Info via ISBN'; }
 });
 
 saveEditBtn?.addEventListener('click', async () => {
@@ -672,10 +658,53 @@ saveEditBtn?.addEventListener('click', async () => {
     await updateRoomDropdown();
     updateScanOptions();
     loadSavedBooks();
+  } catch (error) { alert('Failed to update book.'); } 
+  finally { saveEditBtn.disabled = false; }
+});
+
+// 💡 수정 모달창 내부 사진보기(🖼️) 아이콘 기능
+viewPhotoInEditBtn?.addEventListener('click', async () => {
+  if (!currentEditingBookId) return;
+  const t = i18n[currentLang] || i18n['en'];
+  try {
+    const docRef = doc(db, "books", currentEditingBookId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      let urls = [];
+      ['imageUrls', 'photoUrls', 'photos', 'images', 'urls'].forEach(field => {
+        if (data[field] && Array.isArray(data[field])) urls = urls.concat(data[field]);
+      });
+      if (data.imageUrl && typeof data.imageUrl === 'string') urls.push(data.imageUrl);
+      
+      if (urls.length > 0 && urls[0].trim() !== '') {
+        window.open(urls[0], '_blank'); 
+      } else {
+        alert(t.noPhoto || '이 도서에 저장된 사진이 없습니다.');
+      }
+    }
   } catch (error) {
-    alert('Failed to update book.');
-  } finally {
-    saveEditBtn.disabled = false;
+    console.error("View Photo Error:", error);
+    alert('Failed to load photo.');
+  }
+});
+
+// 💡 수정 모달창 내부 삭제(🗑️) 아이콘 기능
+deleteInEditBtn?.addEventListener('click', async () => {
+  if (!currentEditingBookId) return;
+  const t = i18n[currentLang] || i18n['en'];
+  if (confirm(t.confirmDeleteSingle || 'Are you sure you want to delete this book?')) {
+    try {
+      await deleteDoc(doc(db, "books", currentEditingBookId));
+      alert(t.alertSuccessDelete || 'Successfully deleted.');
+      if (editModal) editModal.style.display = 'none';
+      currentEditingBookId = null;
+      await updateRoomDropdown();
+      updateScanOptions();
+      loadSavedBooks();
+    } catch (error) {
+      alert('Failed to delete book.');
+    }
   }
 });
 

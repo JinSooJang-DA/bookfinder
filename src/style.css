@@ -1,8 +1,9 @@
 /* src/style.css - Vintage Leather Grimoire + Bookshelf Animation */
-@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Gowun+Batang:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
 
 body {
-  font-family: 'Cormorant Garamond', 'Gowun Batang', "Georgia", "Times New Roman", serif;
+  /* 💡 앱 내부 가독성을 위한 산세리프(고딕) 폰트 기본 적용 */
+  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   max-width: 500px;
   margin: 0 auto;
   padding: 20px;
@@ -10,7 +11,7 @@ body {
   color: #e8dcc4;
 }
 
-/* 💡 상단 앱 이름: 길쭉하고 우아한 영문 필기체 */
+/* 상단 앱 이름: 길쭉하고 우아한 영문 필기체 */
 .app-logo {
   font-family: 'Alex Brush', cursive;
   color: #d4af37;
@@ -35,7 +36,7 @@ label {
   font-weight: 700;
   display: block;
   margin-bottom: 8px;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   color: #c1a88a;
   letter-spacing: 0.5px;
 }
@@ -48,7 +49,7 @@ input[type="text"], input[type="email"], input[type="password"], input[type="num
   background-color: #140d0a;
   border-radius: 6px;
   box-sizing: border-box;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: #e8dcc4;
   font-family: inherit;
   transition: all 0.3s;
@@ -71,7 +72,7 @@ input[type="file"] { display: none; }
   text-align: center;
   border: 1px solid #a68153;
   border-radius: 6px;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 700;
   cursor: pointer;
   text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
@@ -85,133 +86,67 @@ input[type="file"] { display: none; }
 .btn-danger { background: linear-gradient(145deg, #8b3a3a, #5a2020); border-color: #a34949; }
 .btn-sm { width: auto; padding: 8px 12px; font-size: 1rem; display: inline-block; }
 
-#loading {
-  display: none;
-  text-align: center;
-  margin: 20px 0;
-  color: #d4af37;
-  font-weight: bold;
-  font-size: 1.2rem;
-}
+#loading { display: none; text-align: center; margin: 20px 0; color: #d4af37; font-weight: bold; font-size: 1.2rem; }
 
 /* ===================================================
-   📖 살아 숨쉬는 책장 애니메이션 (Interactive Bookshelf)
+   📖 살아 숨쉬는 책장 애니메이션
    =================================================== */
 .bookshelf-menu {
-  display: flex;
-  gap: 6px;
-  height: 380px; /* 전체 책장 높이 */
-  align-items: flex-end; /* 책들이 바닥(선반)에 정렬됨 */
-  padding: 15px 10px;
-  margin-bottom: 25px;
-  background: #0f0a07; /* 깊은 책장 안쪽 */
-  border-bottom: 20px solid #2a1a10; /* 선반 판자 */
-  border-radius: 8px;
-  box-shadow: 
-    inset 0 10px 20px rgba(0,0,0,0.9), /* 위쪽 깊은 그림자 */
-    0 10px 15px rgba(0,0,0,0.7); /* 선반 아래 그림자 */
+  display: flex; gap: 6px; height: 380px; align-items: flex-end; padding: 15px 10px; margin-bottom: 25px;
+  background: #0f0a07; border-bottom: 20px solid #2a1a10; border-radius: 8px;
+  box-shadow: inset 0 10px 20px rgba(0,0,0,0.9), 0 10px 15px rgba(0,0,0,0.7);
   position: relative;
 }
 
-/* 책 공통 속성 */
 .menu-book {
-  flex: 1; /* 비활성 상태: 좁은 비율 */
-  height: 90%;
-  background: linear-gradient(135deg, #4a3121, #2a1a10);
-  border: 1px solid #1a1412;
-  border-radius: 4px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  box-shadow: -4px 0 10px rgba(0,0,0,0.7);
-  transition: flex 0.6s cubic-bezier(0.25, 1, 0.5, 1), height 0.3s; /* 💡 부드러운 스르륵 애니메이션 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  flex: 1; height: 90%; background: linear-gradient(135deg, #4a3121, #2a1a10);
+  border: 1px solid #1a1412; border-radius: 4px; cursor: pointer; position: relative; overflow: hidden;
+  box-shadow: -4px 0 10px rgba(0,0,0,0.7); transition: flex 0.6s cubic-bezier(0.25, 1, 0.5, 1), height 0.3s;
+  display: flex; justify-content: center; align-items: center;
 }
 
-/* 책마다 약간씩 높이를 다르게 하여 현실감 부여 */
 .menu-book:nth-child(2n) { height: 95%; background: linear-gradient(135deg, #3a2818, #1a0f08); }
 .menu-book:nth-child(3n) { height: 85%; background: linear-gradient(135deg, #5c3e2b, #2a1a10); }
 
-/* 활성화(선택)된 책 속성 */
 .menu-book.active {
-  flex: 5; /* 💡 펼쳐졌을 때 화면을 5배 더 차지함 */
-  height: 100%; /* 위로 살짝 솟아오름 */
-  border: 2px solid #5c4a3d;
-  border-left: 20px solid #140d0a; /* 두꺼운 책등(Spine) */
-  border-radius: 4px 16px 16px 4px;
-  box-shadow: -8px 0 20px rgba(0,0,0,0.9), 10px 15px 25px rgba(0,0,0,0.8);
-  background: linear-gradient(135deg, #4a3121, #2a1a10);
+  flex: 5; height: 100%; border: 2px solid #5c4a3d; border-left: 20px solid #140d0a; border-radius: 4px 16px 16px 4px;
+  box-shadow: -8px 0 20px rgba(0,0,0,0.9), 10px 15px 25px rgba(0,0,0,0.8); background: linear-gradient(135deg, #4a3121, #2a1a10);
 }
 
-/* 1. 좁은 상태의 세로 글씨(Spine) */
+/* 💡 책등과 표지 타이틀은 엘레강스한 명조체로 고정 */
 .book-spine {
-  writing-mode: vertical-rl; /* 세로 쓰기 */
-  transform: rotate(180deg); /* 위에서 아래로 읽히게 반전 */
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #d4af37; /* 금박 텍스트 */
-  text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-  white-space: nowrap;
-  letter-spacing: 3px;
-  transition: opacity 0.3s ease;
+  font-family: 'Cormorant Garamond', 'Gowun Batang', serif;
+  writing-mode: vertical-rl; transform: rotate(180deg); font-size: 1.3rem; font-weight: 700;
+  color: #d4af37; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); white-space: nowrap; letter-spacing: 3px; transition: opacity 0.3s ease;
 }
 
-/* 2. 펼쳐진 상태의 표지(Cover) 내용 */
 .book-cover {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease 0.3s; /* 💡 책이 펼쳐진 후 서서히 등장 */
-  padding: 10px 10px 10px 25px; /* 좌측 책등 피하기 */
-  text-align: center;
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s ease 0.3s; padding: 10px 10px 10px 25px; text-align: center;
 }
 
-/* 활성화 시 Spine은 사라지고 Cover가 나타남 */
 .menu-book.active .book-spine { opacity: 0; position: absolute; }
 .menu-book.active .book-cover { opacity: 1; pointer-events: auto; }
 
-/* 표지 금박 무늬 장식 */
 .menu-book.active::before {
-  content: '';
-  position: absolute;
-  top: 15px; bottom: 15px; left: 35px; right: 15px;
-  border: 1px solid #d4af37;
-  outline: 1px solid rgba(212, 175, 55, 0.6);
-  outline-offset: -5px;
-  border-radius: 2px 8px 8px 2px;
-  background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(212, 175, 55, 0.05) 10px, rgba(212, 175, 55, 0.05) 12px);
-  pointer-events: none;
+  content: ''; position: absolute; top: 15px; bottom: 15px; left: 35px; right: 15px;
+  border: 1px solid #d4af37; outline: 1px solid rgba(212, 175, 55, 0.6); outline-offset: -5px; border-radius: 2px 8px 8px 2px;
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(212, 175, 55, 0.05) 10px, rgba(212, 175, 55, 0.05) 12px); pointer-events: none;
 }
 
+/* 💡 책등과 표지 타이틀은 엘레강스한 명조체로 고정 */
 .book-cover span:first-child {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #d4af37;
-  margin-bottom: 15px;
-  line-height: 1.2;
-  text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
+  font-family: 'Cormorant Garamond', 'Gowun Batang', serif;
+  font-size: 2rem; font-weight: 700; color: #d4af37; margin-bottom: 15px; line-height: 1.2; text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
 }
+.book-cover .menu-desc { font-size: 1.05rem; color: #c1a88a; line-height: 1.4; }
 
-.book-cover .menu-desc {
-  font-size: 1.05rem;
-  color: #c1a88a;
-  line-height: 1.4;
-}
-
-/* 기존 다른 뷰 스타일들 ... (갤러리 아코디언 등 유지) */
 .filter-box { background: #221a15; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #4a3a2f; }
 .gallery-room-card { background: #2a201a; border-radius: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid #4a3a2f; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5); }
-.gallery-room-header h3 { margin: 0 0 16px 0; font-size: 1.6rem; color: #d4af37; }
+.gallery-room-header h3 { font-family: 'Cormorant Garamond', 'Gowun Batang', serif; margin: 0 0 16px 0; font-size: 1.6rem; color: #d4af37; }
 .gallery-shelf-wrapper { background: #1e1713; border: 1px solid #3d2f26; border-radius: 10px; padding: 12px; margin-bottom: 15px; }
 .gallery-shelf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.shelf-title-box h4 { margin: 0; font-size: 1.3rem; color: #e8dcc4; }
+.shelf-title-box h4 { font-family: 'Cormorant Garamond', 'Gowun Batang', serif; margin: 0; font-size: 1.3rem; color: #e8dcc4; }
 .shelf-stats-badge { font-size: 0.95rem; color: #a68153; display: block; margin-top: 4px; }
 .shelf-board-rack { border: 5px solid #140d0a; border-radius: 6px; background: #0f0a07; }
 .accordion-layer-card { background: #261d17; transition: background-color 0.2s ease; }
@@ -220,7 +155,7 @@ input[type="file"] { display: none; }
 .accordion-layer-header:hover { background-color: #3d2f26; }
 .layer-header-left { display: flex; align-items: center; gap: 10px; }
 .accordion-arrow { font-size: 0.95rem; color: #a68153; width: 14px; }
-.layer-name { font-size: 1.2rem; color: #d4af37; font-weight: bold; }
+.layer-name { font-family: 'Cormorant Garamond', 'Gowun Batang', serif; font-size: 1.2rem; color: #d4af37; font-weight: bold; }
 .layer-badge { font-size: 0.9rem; background: #140d0a; color: #c1a88a; padding: 3px 8px; border-radius: 12px; border: 1px solid #4a3a2f; }
 .layer-header-right { display: flex; align-items: center; gap: 8px; }
 .layer-mini-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid #5c4a3d; }
@@ -242,3 +177,43 @@ input[type="file"] { display: none; }
 ::-webkit-scrollbar-track { background: #1a1412; }
 ::-webkit-scrollbar-thumb { background: #4a3a2f; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #614626; }
+
+/* 1. 도서 제목 1px 향상 및 font-weight 500 적용 */
+#savedBookList div strong, #bookList div strong,
+#savedBookList h4, #bookList h4,
+#savedBookList .book-title, #bookList .book-title {
+  font-size: 1.15rem !important; /* 약 +1px~2px 효과 */
+  font-weight: 500 !important;
+  color: #d4af37 !important;
+  letter-spacing: 0.3px;
+}
+
+/* 2. 작가명 1px 향상 */
+#savedBookList div span, #bookList div span,
+#savedBookList p, #bookList p,
+#savedBookList .book-author, #bookList .book-author {
+  font-size: 0.95rem !important; /* 약 +1px 효과 */
+  color: #c1a88a !important;
+}
+
+/* 3. 뷰 포토, 삭제 등 불필요한 버튼 리스트에서 완전 숨김 */
+#savedBookList .btn-info, #bookList .btn-info,
+#savedBookList .btn-danger, #bookList .btn-danger {
+  display: none !important;
+}
+
+/* 4. Edit 버튼명 이모티콘 제거, 'Edit'만 남기고 얇고 작게 변경 */
+#savedBookList .btn-secondary, #bookList .btn-secondary {
+  font-size: 0 !important; /* 기존 텍스트(이모티콘 포함) 강제 숨김 */
+  font-weight: 400 !important;
+  padding: 6px 14px !important;
+  min-width: 60px;
+}
+
+#savedBookList .btn-secondary::after, #bookList .btn-secondary::after {
+  content: "Edit";
+  font-size: 0.85rem; /* 기존보다 작게 */
+  font-weight: 400;   /* 얇게 */
+  color: #f8f1e4;
+  letter-spacing: 0.5px;
+}
