@@ -82,6 +82,7 @@ export async function loadGalleryHierarchy() {
         const layers = Object.keys(shelfData).sort((a, b) => Number(a) - Number(b));
         const totalBooksCount = layers.reduce((acc, l) => acc + shelfData[l].books.length, 0);
 
+        // 💡 삭제 버튼 제거됨
         roomHtml += `
           <div class="gallery-shelf-wrapper">
             <div class="gallery-shelf-header">
@@ -90,11 +91,9 @@ export async function loadGalleryHierarchy() {
                 <span class="shelf-stats-badge">${layers.length} Layers · ${totalBooksCount} Books</span>
               </div>
               <div style="display: flex; gap: 6px;">
-                <!-- 💡 책장 단위 전체 일괄 분석 버튼 추가 -->
                 <button class="btn btn-success btn-sm" onclick="window.reanalyzeShelfScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}')">
                   🔍 ${t('btnReanalyzeShelf') || '전체 일괄 분석'}
                 </button>
-                <button class="btn btn-danger btn-sm" onclick="window.deleteShelfScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}')">🗑️ Shelf</button>
               </div>
             </div>
             <div class="shelf-board-rack">
@@ -111,6 +110,7 @@ export async function loadGalleryHierarchy() {
 
           const isUnanalyzed = sortedBooks.length === 1 && sortedBooks[0].author === '-';
 
+          // 💡 레이어별 삭제 버튼 제거됨
           roomHtml += `
             <div class="accordion-layer-card" id="layerCard_${escapeHtml(room)}_${escapeHtml(shelfName)}_${layer}">
               <div class="accordion-layer-header" onclick="window.toggleLayerAccordion('${escapeHtml(room)}', '${escapeHtml(shelfName)}', '${layer}')">
@@ -121,7 +121,6 @@ export async function loadGalleryHierarchy() {
                 </div>
                 <div class="layer-header-right">
                   ${firstThumb ? `<img src="${firstThumb}" class="layer-mini-thumb" alt="preview" />` : `<span class="no-photo-badge">No photo</span>`}
-                  <button class="btn btn-danger btn-sm btn-delete-layer-tight" onclick="event.stopPropagation(); window.deleteLayerScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}', ${layer})">🗑️</button>
                 </div>
               </div>
 
@@ -173,7 +172,7 @@ export async function loadGalleryHierarchy() {
   }
 }
 
-// 💡 단일 칸 재분석 함수
+// 단일 칸 재분석 함수
 window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
   const imageUrls = window.galleryPhotoStore[storeKey] || [];
   if (imageUrls.length === 0) return alert(t('noImageLocal'));
@@ -237,7 +236,7 @@ window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
   }
 };
 
-// 💡 책장 전체(모든 칸) 일괄 재분석 로직
+// 책장 전체(모든 칸) 일괄 재분석 로직
 window.reanalyzeShelfScope = async (room, shelfName) => {
   const prefix = `${room}___${shelfName}___`;
   const layerKeys = Object.keys(window.galleryPhotoStore).filter(key => key.startsWith(prefix));
@@ -273,7 +272,6 @@ window.reanalyzeShelfScope = async (room, shelfName) => {
       const newDetectedBooks = await analyzeBookshelfImage(imageBlobs, lang);
 
       if (newDetectedBooks && newDetectedBooks.length > 0) {
-        // 기존 칸 데이터 삭제
         const q = query(collection(db, "books"),
           where("room", "==", room),
           where("shelfName", "==", shelfName),
@@ -288,7 +286,6 @@ window.reanalyzeShelfScope = async (room, shelfName) => {
         });
         await Promise.all(deletePromises);
 
-        // 새 분석 데이터 추가
         const savePromises = newDetectedBooks.map((book, idx) => {
           return addDoc(collection(db, "books"), {
             title: book.title || 'Unknown Title',
@@ -313,7 +310,6 @@ window.reanalyzeShelfScope = async (room, shelfName) => {
       failCount++;
     }
 
-    // 구글 API 무료 한도(15 RPM) 보호를 위해 각 칸을 분석한 후 4초 대기
     if (i < layerKeys.length - 1) {
       await new Promise(resolve => setTimeout(resolve, 4000));
     }
@@ -339,37 +335,5 @@ window.toggleLayerAccordion = (room, shelfName, layer) => {
     body.style.display = 'none';
     if (arrow) arrow.textContent = '▶';
     card.classList.remove('is-expanded');
-  }
-};
-
-window.deleteShelfScope = async (room, shelfName) => {
-  if (confirm(`Are you sure you want to delete all books and photo records in room "${room}", bookshelf "${shelfName}"?`)) {
-    try {
-      const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelfName));
-      const querySnapshot = await getDocs(q);
-      const deletePromises = [];
-      querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
-      await Promise.all(deletePromises);
-      alert('Bookshelf deleted successfully.');
-      await updateRoomDropdown();
-      loadGalleryHierarchy();
-      loadSavedBooks();
-    } catch (error) { alert('Failed to delete bookshelf.'); }
-  }
-};
-
-window.deleteLayerScope = async (room, shelfName, layer) => {
-  if (confirm(`Are you sure you want to delete records in room "${room}" - "${shelfName}", Layer ${layer}?`)) {
-    try {
-      const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelfName), where("shelfLayer", "==", Number(layer)));
-      const querySnapshot = await getDocs(q);
-      const deletePromises = [];
-      querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
-      await Promise.all(deletePromises);
-      alert('Layer data deleted successfully.');
-      await updateRoomDropdown();
-      loadGalleryHierarchy();
-      loadSavedBooks();
-    } catch (error) { alert('Failed to delete layer.'); }
   }
 };

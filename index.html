@@ -39,7 +39,6 @@
     <!-- 🏠 메인 대시보드 메뉴 -->
     <div id="mainDashboard">
       <div class="main-menu-grid">
-        <!-- 💡 신규: 책장 구성 (분석 없이 사진만 업로드) -->
         <button onclick="switchView('setupView')" class="menu-card">
           <span id="menuSetupTitle">🗄️ 책장 구성</span>
           <span id="menuSetupDesc" class="menu-desc">(사진 일괄 업로드)</span>
@@ -52,9 +51,18 @@
           <span id="menuGalleryTitle">🖼️ 갤러리</span>
           <span id="menuGalleryDesc" class="menu-desc">(묶음 재분석 지원)</span>
         </button>
+        <button onclick="switchView('searchView')" class="menu-card">
+          <span id="menuSearchTitle">🔍 도서 검색</span>
+          <span id="menuSearchDesc" class="menu-desc">(인벤토리 조회)</span>
+        </button>
         <button onclick="switchView('barcodeView')" class="menu-card">
           <span id="menuBarcodeTitle">📱 바코드 입력</span>
           <span id="menuBarcodeDesc" class="menu-desc">(개별 도서 추가)</span>
+        </button>
+        <!-- 💡 신규: 삭제/관리를 한곳에 모은 데이터 관리 메뉴 -->
+        <button onclick="switchView('manageView')" class="menu-card">
+          <span id="menuManageTitle">⚙️ 데이터 관리</span>
+          <span id="menuManageDesc" class="menu-desc">(삭제 및 정리)</span>
         </button>
       </div>
     </div>
@@ -66,8 +74,8 @@
     <!-- 1. 🗄️ 책장 구성 (빠른 업로드) 뷰 -->
     <div id="setupView" class="sub-view" style="display: none;">
       <div class="card">
-        <h3 id="setupViewTitle" style="margin-top: 0;">🗄️ 책장 기본 사진 구성</h3>
-        <p id="setupViewDesc" style="font-size: 0.9rem; color: #666; margin-bottom:15px;">분석 대기 없이 다중 사진만 갤러리에 빠르게 저장합니다.</p>
+        <h3 id="setupViewTitle" style="margin-top: 0;">🗄️ Basic Shelf Setup</h3>
+        <p id="setupViewDesc" style="font-size: 0.9rem; color: #666; margin-bottom:15px;">Quickly save multiple photos to the gallery without waiting for analysis.</p>
 
         <label for="setupRoomSelect" id="setupRoomLabel">Room Name</label>
         <select id="setupRoomSelect" style="margin-bottom: 8px;"></select>
@@ -95,7 +103,7 @@
         <div id="setupPreviewContainer" style="margin-top:10px; display:flex; gap:5px; overflow-x:auto;"></div>
 
         <button id="setupSaveBtn" class="btn btn-success" style="margin-top: 15px; width: 100%; display: none;">
-          💾 사진 데이터베이스에 저장
+          💾 Save to Database
         </button>
       </div>
     </div>
@@ -163,7 +171,7 @@
       </div>
     </div>
 
-    <!-- 4. 🔍 도서 검색 뷰 -->
+    <!-- 4. 🔍 도서 검색 뷰 (삭제 기능 분리됨) -->
     <div id="searchView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="searchViewTitle" style="margin-top: 0;">📖 Book Search & Inventory</h3>
@@ -172,7 +180,7 @@
         </div>
 
         <div class="filter-box" style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 12px;">
-          <label id="lblFilterGroup" style="font-weight: bold; display: block; margin-bottom: 6px;">Filter & Group Operations</label>
+          <label style="font-weight: bold; display: block; margin-bottom: 6px;">Filter Options</label>
           <div style="display: flex; flex-direction: column; gap: 6px;">
             <select id="filterRoom">
               <option value="ALL">All Rooms</option>
@@ -184,7 +192,6 @@
               <option value="ALL">All Layers</option>
             </select>
           </div>
-          <button id="deleteGroupBtn" class="btn btn-danger btn-sm" style="width: 100%; margin-top: 8px;">🗑️ Delete Selected Scope</button>
         </div>
 
         <div id="savedBookList"></div>
@@ -240,6 +247,24 @@
         </div>
 
         <button id="submitIsbnBtn" class="btn btn-success" style="margin-top: 12px; width: 100%;">➕ Add Book</button>
+      </div>
+    </div>
+
+    <!-- 6. ⚙️ 데이터 관리 (일괄 삭제 전용 뷰) 신설 -->
+    <div id="manageView" class="sub-view" style="display: none;">
+      <div class="card">
+        <h3 id="manageViewTitle" style="margin-top: 0;">⚙️ Data Management</h3>
+        <p id="manageViewDesc" style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">Select a specific room, bookcase, or layer to delete its records entirely.</p>
+        
+        <div class="filter-box" style="background: #fff0f0; border: 1px solid #ffcccc; padding: 15px; border-radius: 6px;">
+          <label style="font-weight: bold; color: #dc3545; display: block; margin-bottom: 10px;">Scope to Delete</label>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <select id="manageRoomSelect"><option value="ALL">Select Room...</option></select>
+            <select id="manageShelfSelect" disabled><option value="ALL">All Bookcases</option></select>
+            <select id="manageLayerSelect" disabled><option value="ALL">All Layers</option></select>
+          </div>
+          <button id="executeDeleteBtn" class="btn btn-danger" style="width: 100%; margin-top: 15px;">🗑️ Delete Selected Scope</button>
+        </div>
       </div>
     </div>
 

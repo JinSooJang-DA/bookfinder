@@ -15,6 +15,14 @@ export const i18n = {
     menuSearchDesc: "(Inventory Lookup)",
     menuBarcodeTitle: "📱 Barcode Input",
     menuBarcodeDesc: "(Add Individual Book)",
+    
+    // 신규 관리 메뉴 텍스트
+    menuManageTitle: "⚙️ Data Management",
+    menuManageDesc: "(Delete & Organize)",
+    manageViewTitle: "⚙️ Data Management",
+    manageViewDesc: "Select a specific room, bookcase, or layer to delete its records entirely.",
+    btnDeleteScope: "🗑️ Delete Selected Scope",
+
     backToMenu: "⬅️ Back to Menu",
 
     setupViewTitle: "🗄️ Basic Shelf Setup",
@@ -42,11 +50,10 @@ export const i18n = {
     searchViewTitle: "📖 Book Search & Inventory",
     lblSearch: "🔍 Search Books",
     searchPlaceholder: "Search by title or author...",
-    lblFilterGroup: "Filter & Group Operations",
+    lblFilterGroup: "Filter Options",
     allRooms: "All Rooms",
     allShelves: "All Bookcases",
     allLayers: "All Layers",
-    deleteGroupBtn: "🗑️ Delete Selected Scope",
 
     barcodeViewTitle: "📷 Barcode (ISBN) Individual Book Add",
     barcodeDesc: "Specify the position where the book will be placed, then enter the ISBN.",
@@ -100,12 +107,6 @@ export const i18n = {
     galleryLoading: "Loading bookshelf gallery...",
     galleryEmpty: "No bookshelf records found in database yet.",
     galleryError: "Failed to load gallery hierarchy.",
-    shelfDeleteConfirm: "Are you sure you want to delete all books and photo records in room",
-    shelfDeleteSuccess: "Bookshelf deleted successfully.",
-    shelfDeleteFail: "Failed to delete bookshelf.",
-    layerDeleteConfirm: "Are you sure you want to delete records in room",
-    layerDeleteSuccess: "Layer data deleted successfully.",
-    layerDeleteFail: "Failed to delete layer.",
     noPhoto: "No photo",
     noImageLocal: "No image files found locally.",
 
@@ -141,6 +142,14 @@ export const i18n = {
     menuSearchDesc: "(Bestand durchsuchen)",
     menuBarcodeTitle: "📱 Barcode-Eingabe",
     menuBarcodeDesc: "(Einzelnes Buch hinzufügen)",
+    
+    // 신규 관리 메뉴 텍스트
+    menuManageTitle: "⚙️ Datenverwaltung",
+    menuManageDesc: "(Löschen & Organisieren)",
+    manageViewTitle: "⚙️ Datenverwaltung",
+    manageViewDesc: "Wählen Sie einen Raum, ein Regal oder ein Fach aus, um dessen Einträge vollständig zu löschen.",
+    btnDeleteScope: "🗑️ Ausgewählten Bereich löschen",
+
     backToMenu: "⬅️ Zurück zum Menü",
 
     setupViewTitle: "🗄️ Regal-Grundkonfiguration",
@@ -168,11 +177,10 @@ export const i18n = {
     searchViewTitle: "📖 Buchsuche & Bestand",
     lblSearch: "🔍 Bücher suchen",
     searchPlaceholder: "Nach Titel oder Autor suchen...",
-    lblFilterGroup: "Filter & Gruppen-Aktionen",
+    lblFilterGroup: "Filteroptionen",
     allRooms: "Alle Räume",
     allShelves: "Alle Regale",
     allLayers: "Alle Fächer",
-    deleteGroupBtn: "🗑️ Ausgewählten Bereich löschen",
 
     barcodeViewTitle: "📷 Barcode (ISBN) Einzelnes Buch hinzufügen",
     barcodeDesc: "Geben Sie den Ablageort an und scannen/tippen Sie dann die ISBN ein.",
@@ -226,12 +234,6 @@ export const i18n = {
     galleryLoading: "Regalgalerie wird geladen...",
     galleryEmpty: "Noch keine Regaleinträge in der Datenbank gefunden.",
     galleryError: "Fehler beim Laden der Galeriehierarchie.",
-    shelfDeleteConfirm: "Möchten Sie wirklich alle Bücher und Fotodatensätze im Raum",
-    shelfDeleteSuccess: "Regal erfolgreich gelöscht.",
-    shelfDeleteFail: "Fehler beim Löschen des Regals.",
-    layerDeleteConfirm: "Möchten Sie wirklich die Datensätze im Raum",
-    layerDeleteSuccess: "Fachdaten erfolgreich gelöscht.",
-    layerDeleteFail: "Fehler beim Löschen des Fachs.",
     noPhoto: "Kein Foto",
     noImageLocal: "Keine Bilddateien lokal gefunden.",
 
@@ -267,6 +269,14 @@ export const i18n = {
     menuSearchDesc: "(인벤토리 조회)",
     menuBarcodeTitle: "📷 바코드 입력",
     menuBarcodeDesc: "(개별 도서 추가)",
+
+    // 신규 관리 메뉴 텍스트
+    menuManageTitle: "⚙️ 데이터 관리",
+    menuManageDesc: "(삭제 및 정리)",
+    manageViewTitle: "⚙️ 데이터 관리",
+    manageViewDesc: "삭제할 방, 책장 또는 칸을 선택하면 해당 영역의 데이터가 전체 삭제됩니다.",
+    btnDeleteScope: "🗑️ 선택 영역 전체 삭제",
+
     backToMenu: "⬅️ 메인 메뉴로 돌아가기",
 
     setupViewTitle: "🗄️ 책장 기본 사진 구성",
@@ -294,11 +304,10 @@ export const i18n = {
     searchViewTitle: "📖 도서 검색 및 인벤토리",
     lblSearch: "🔍 도서 검색",
     searchPlaceholder: "제목 또는 저자로 검색...",
-    lblFilterGroup: "필터 및 그룹 삭제",
+    lblFilterGroup: "필터 옵션",
     allRooms: "모든 방",
     allShelves: "모든 책장",
     allLayers: "모든 칸",
-    deleteGroupBtn: "🗑️ 선택 영역 전체 삭제",
 
     barcodeViewTitle: "📷 바코드(ISBN) 개별 도서 추가",
     barcodeDesc: "먼저 책이 꽂힐 위치를 지정한 뒤 ISBN을 입력하세요.",
@@ -348,6 +357,12 @@ export const i18n = {
     failUpdateBook: "도서 정보 업데이트에 실패했습니다.",
     failSaveBook: "도서 저장에 실패했습니다.",
     failAnalyzeImage: "이미지 분석에 실패했습니다.",
+
+    galleryLoading: "책장 갤러리를 불러오는 중...",
+    galleryEmpty: "데이터베이스에 등록된 책장 기록이 없습니다.",
+    galleryError: "갤러리 계층 구조를 불러오는 데 실패했습니다.",
+    noPhoto: "사진 없음",
+    noImageLocal: "로컬에 저장된 이미지 파일이 없습니다.",
 
     noMissingIsbnFound: "ISBN이 누락된 도서가 없습니다. 모두 등록되어 있습니다.",
     confirmAutoFillIsbn: "권의 도서에 ISBN이 없습니다. 자동으로 검색하여 채워 넣으시겠습니까?",

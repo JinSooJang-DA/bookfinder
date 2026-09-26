@@ -27,7 +27,6 @@ const uiLanguageSelect = document.getElementById('uiLanguageSelect');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const customLanguageInput = document.getElementById('customLanguageInput');
 
-// Scan View Elements
 const roomSelect = document.getElementById('roomSelect');
 const roomInput = document.getElementById('roomInput');
 const shelfSelect = document.getElementById('shelfSelect');
@@ -43,7 +42,6 @@ const totalLayersInput = document.getElementById('totalLayers');
 const shelfLayerSelect = document.getElementById('shelfLayer');
 const shotsPerLayerInput = document.getElementById('shotsPerLayer');
 
-// Setup View Elements (빠른 다중 업로드)
 const setupRoomSelect = document.getElementById('setupRoomSelect');
 const setupRoomInput = document.getElementById('setupRoomInput');
 const setupShelfSelect = document.getElementById('setupShelfSelect');
@@ -55,11 +53,11 @@ const btnSetupPhoto = document.getElementById('btnSetupPhoto');
 const setupPreviewContainer = document.getElementById('setupPreviewContainer');
 const setupSaveBtn = document.getElementById('setupSaveBtn');
 
-// Filter & Edit Elements
-const filterRoom = document.getElementById('filterRoom');
-const filterShelf = document.getElementById('filterShelf');
-const filterLayer = document.getElementById('filterLayer');
-const deleteGroupBtn = document.getElementById('deleteGroupBtn');
+// 💡 Manage View (데이터 관리 전용 뷰 요소)
+const manageRoomSelect = document.getElementById('manageRoomSelect');
+const manageShelfSelect = document.getElementById('manageShelfSelect');
+const manageLayerSelect = document.getElementById('manageLayerSelect');
+const executeDeleteBtn = document.getElementById('executeDeleteBtn');
 
 const editModal = document.getElementById('editModal');
 const editTitleInput = document.getElementById('editTitle');
@@ -81,7 +79,7 @@ let currentEditingBookId = null;
 let currentShotIndex = 0;
 let accumulatedBooks = [];
 let accumulatedFiles = [];
-let setupFiles = []; // Setup View 용 다중 파일
+let setupFiles = []; 
 let scanHierarchy = {}; 
 
 initBookListModule({
@@ -184,6 +182,66 @@ shelfSelect?.addEventListener('change', () => handleShelfChange(shelfSelect, she
 setupRoomSelect?.addEventListener('change', () => handleRoomChange(setupRoomSelect, setupRoomInput, setupShelfSelect));
 setupShelfSelect?.addEventListener('change', () => handleShelfChange(setupShelfSelect, setupShelfInput));
 
+// 💡 Manage View: 삭제 관리 옵션 구성
+async function updateManageOptions() {
+  try {
+    if (!manageRoomSelect) return;
+    const t = i18n[currentLang] || i18n['en'];
+    const querySnapshot = await getDocs(collection(db, "books"));
+    const hierarchy = {};
+    querySnapshot.forEach(docSnap => {
+      const d = docSnap.data();
+      const r = d.room || 'Living Room';
+      const s = d.shelfName || 'Bookcase A';
+      const l = d.shelfLayer || 1;
+      if (!hierarchy[r]) hierarchy[r] = {};
+      if (!hierarchy[r][s]) hierarchy[r][s] = new Set();
+      hierarchy[r][s].add(l);
+    });
+    
+    window._manageHierarchy = hierarchy;
+    
+    manageRoomSelect.innerHTML = `<option value="ALL">${currentLang === 'ko' ? '방 선택...' : 'Select Room...'}</option>`;
+    Object.keys(hierarchy).forEach(room => {
+      manageRoomSelect.innerHTML += `<option value="${room}">${room}</option>`;
+    });
+    
+    manageRoomSelect.value = 'ALL';
+    manageRoomSelect.dispatchEvent(new Event('change'));
+  } catch(e) { console.error(e); }
+}
+
+manageRoomSelect?.addEventListener('change', () => {
+  const room = manageRoomSelect.value;
+  const t = i18n[currentLang] || i18n['en'];
+  if (room === 'ALL') {
+    manageShelfSelect.innerHTML = `<option value="ALL">${t.allShelves}</option>`;
+    manageShelfSelect.disabled = true;
+    manageLayerSelect.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
+    manageLayerSelect.disabled = true;
+  } else {
+    manageShelfSelect.disabled = false;
+    manageShelfSelect.innerHTML = `<option value="ALL">${t.allShelves}</option>`;
+    const shelves = Object.keys(window._manageHierarchy[room] || {});
+    shelves.forEach(s => manageShelfSelect.innerHTML += `<option value="${s}">${s}</option>`);
+  }
+});
+
+manageShelfSelect?.addEventListener('change', () => {
+  const room = manageRoomSelect.value;
+  const shelf = manageShelfSelect.value;
+  const t = i18n[currentLang] || i18n['en'];
+  if (shelf === 'ALL') {
+    manageLayerSelect.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
+    manageLayerSelect.disabled = true;
+  } else {
+    manageLayerSelect.disabled = false;
+    manageLayerSelect.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
+    const layers = Array.from(window._manageHierarchy[room][shelf] || []).sort((a,b) => a-b);
+    layers.forEach(l => manageLayerSelect.innerHTML += `<option value="${l}">${t.layerPrefix} ${l}</option>`);
+  }
+});
+
 onAuthStateChanged(auth, (user) => {
   if (user) {
     if (authContainer) authContainer.style.display = 'none';
@@ -245,6 +303,7 @@ window.switchView = (viewId) => {
       if (viewId === 'galleryView') loadGalleryHierarchy();
       if (viewId === 'barcodeView') loadBarcodeHierarchyOptions();
       if (viewId === 'scanView' || viewId === 'setupView') updateScanOptions();
+      if (viewId === 'manageView') updateManageOptions(); // 💡 관리 뷰 진입 시 옵션 로드
     }
   }
   applyUiLanguage(currentLang);
@@ -273,8 +332,15 @@ function applyUiLanguage(lang) {
   setTxt('menuSearchDesc', t.menuSearchDesc);
   setTxt('menuBarcodeTitle', t.menuBarcodeTitle);
   setTxt('menuBarcodeDesc', t.menuBarcodeDesc);
-  setTxt('backToMenuBtn', t.backToMenu);
+  
+  // 💡 신규 관리 메뉴 텍스트 반영
+  setTxt('menuManageTitle', t.menuManageTitle);
+  setTxt('menuManageDesc', t.menuManageDesc);
+  setTxt('manageViewTitle', t.manageViewTitle);
+  setTxt('manageViewDesc', t.manageViewDesc);
+  if (executeDeleteBtn) executeDeleteBtn.textContent = t.btnDeleteScope;
 
+  setTxt('backToMenuBtn', t.backToMenu);
   setTxt('setupViewTitle', t.setupViewTitle);
   setTxt('setupViewDesc', t.setupViewDesc);
   setTxt('setupRoomLabel', t.roomInputLabel);
@@ -302,8 +368,7 @@ function applyUiLanguage(lang) {
   const searchInput = document.getElementById('searchInput');
   if (searchInput) searchInput.placeholder = t.searchPlaceholder;
   setTxt('lblFilterGroup', t.lblFilterGroup);
-  if (deleteGroupBtn) deleteGroupBtn.textContent = t.deleteGroupBtn;
-
+  
   setTxt('barcodeViewTitle', t.barcodeViewTitle);
   setTxt('barcodeDesc', t.barcodeDesc);
   setTxt('bcRoomLabel', t.bcRoomLabel);
@@ -347,7 +412,6 @@ function updateLayerSelectOptions(totEl, selEl) {
 totalLayersInput?.addEventListener('input', () => updateLayerSelectOptions(totalLayersInput, shelfLayerSelect));
 setupTotalLayers?.addEventListener('input', () => updateLayerSelectOptions(setupTotalLayers, setupShelfLayer));
 
-// --- 💡 Setup View (빠른 업로드) 로직 ---
 setupCameraInput?.addEventListener('change', (e) => {
   const files = Array.from(e.target.files);
   if (files.length === 0) return;
@@ -414,7 +478,6 @@ setupSaveBtn?.addEventListener('click', async () => {
   }
 });
 
-// --- 기존 Scan View 로직 ---
 function resetShotSession() {
   currentShotIndex = 0; accumulatedBooks = []; accumulatedFiles = [];
   if (resultCard) resultCard.style.display = 'none';
@@ -594,11 +657,12 @@ saveEditBtn?.addEventListener('click', async () => {
   }
 });
 
-deleteGroupBtn?.addEventListener('click', async () => {
+// 💡 관리 뷰 (manageView) 통합 삭제 실행 로직
+executeDeleteBtn?.addEventListener('click', async () => {
   const t = i18n[currentLang] || i18n['en'];
-  const room = filterRoom ? filterRoom.value : 'ALL';
-  const shelf = filterShelf ? filterShelf.value : 'ALL';
-  const layer = filterLayer ? filterLayer.value : 'ALL';
+  const room = manageRoomSelect ? manageRoomSelect.value : 'ALL';
+  const shelf = manageShelfSelect ? manageShelfSelect.value : 'ALL';
+  const layer = manageLayerSelect ? manageLayerSelect.value : 'ALL';
 
   if (room === 'ALL') return alert(t.alertSelectRoomFirst);
 
@@ -614,6 +678,7 @@ deleteGroupBtn?.addEventListener('click', async () => {
 
       const q = query(collection(db, "books"), ...conditions);
       const querySnapshot = await getDocs(q);
+      
       const deletePromises = [];
       querySnapshot.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "books", docSnap.id))));
 
@@ -622,8 +687,10 @@ deleteGroupBtn?.addEventListener('click', async () => {
       
       await updateRoomDropdown();
       updateScanOptions();
+      updateManageOptions(); // 💡 삭제 후 관리 목록 갱신
       loadSavedBooks();
     } catch (error) {
+      console.error('Group Delete Error:', error);
       alert('Failed to delete group.');
     }
   }

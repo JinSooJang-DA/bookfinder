@@ -53,7 +53,7 @@ export async function analyzeBookshelfImage(imageInputs, targetLang = 'en') {
   }
 
   // 재시도 로직 없이 단 1회만 호출. 모델은 안정적인 3.6-flash 고정
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
