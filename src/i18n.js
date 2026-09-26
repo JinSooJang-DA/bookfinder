@@ -110,7 +110,12 @@ export const i18n = {
     failAutoFillIsbn: "Failed to auto-fill ISBNs.",
     btnAutoFillIsbn: "🔍 Auto-Fill Missing ISBNs",
     success: "Success",
-    failed: "Failed/Not found"
+    failed: "Failed/Not found",
+
+    btnReanalyze: "Re-analyze",
+    reanalyzingStarted: "Starting re-analysis. Please wait...",
+    reanalyzeSuccess: "Re-analysis successful! Books have been updated.",
+    corsErrorReanalyze: "Failed to download image from cloud server for re-analysis."
   },
   de: {
     appTitle: "📚 Bücherregal-Scanner",
@@ -212,17 +217,10 @@ export const i18n = {
     success: "Erfolgreich",
     failed: "Fehlgeschlagen/Nicht gefunden",
 
-    galleryLoading: "Regalgalerie wird geladen...",
-    galleryEmpty: "Noch keine Regaleinträge in der Datenbank gefunden.",
-    galleryError: "Fehler beim Laden der Galeriehierarchie.",
-    shelfDeleteConfirm: "Möchten Sie wirklich alle Bücher und Fotodatensätze im Raum",
-    shelfDeleteSuccess: "Regal erfolgreich gelöscht.",
-    shelfDeleteFail: "Fehler beim Löschen des Regals.",
-    layerDeleteConfirm: "Möchten Sie wirklich die Datensätze im Raum",
-    layerDeleteSuccess: "Fachdaten erfolgreich gelöscht.",
-    layerDeleteFail: "Fehler beim Löschen des Fachs.",
-    noPhoto: "Kein Foto",
-    noImageLocal: "Keine Bilddateien lokal gefunden."
+    btnReanalyze: "Erneut analysieren",
+    reanalyzingStarted: "Erneute Analyse gestartet. Bitte warten...",
+    reanalyzeSuccess: "Erneute Analyse erfolgreich! Bücher wurden aktualisiert.",
+    corsErrorReanalyze: "Fehler beim Herunterladen des Bildes für die erneute Analyse."
   },
   ko: {
     appTitle: "📚 책장 스캐너",
@@ -324,16 +322,9 @@ export const i18n = {
     success: "성공",
     failed: "실패/없음",
 
-    galleryLoading: "책장 갤러리를 불러오는 중...",
-    galleryEmpty: "데이터베이스에 등록된 책장 기록이 없습니다.",
-    galleryError: "갤러리 계층 구조를 불러오는 데 실패했습니다.",
-    shelfDeleteConfirm: "정말 다음 방의 모든 책장 및 사진 기록을 삭제하시겠습니까? 방: ",
-    shelfDeleteSuccess: "책장이 성공적으로 삭제되었습니다.",
-    shelfDeleteFail: "책장 삭제에 실패했습니다.",
-    layerDeleteConfirm: "정말 다음 영역의 기록을 삭제하시겠습니까? 방 및 책장: ",
-    layerDeleteSuccess: "칸 데이터가 성공적으로 삭제되었습니다.",
-    layerDeleteFail: "칸 삭제에 실패했습니다.",
-    noPhoto: "사진 없음",
-    noImageLocal: "로컬에 저장된 이미지 파일이 없습니다."
+    btnReanalyze: "다시 분석하기",
+    reanalyzingStarted: "재분석을 시작합니다. 잠시만 기다려주세요...",
+    reanalyzeSuccess: "재분석 완료! 도서 목록이 업데이트되었습니다.",
+    corsErrorReanalyze: "재분석을 위한 이미지 다운로드에 실패했습니다."
   }
 };

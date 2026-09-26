@@ -1,9 +1,10 @@
 // src/gallery.js
 import { db } from './firebase.js';
-import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, deleteDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { escapeHtml } from './ui.js';
 import { updateRoomDropdown, loadSavedBooks } from './booklist.js';
 import { i18n } from './i18n.js';
+import { analyzeBookshelfImage } from './api.js'; // 재분석용 API 임포트
 
 let galleryContainer = null;
 
@@ -100,8 +101,6 @@ export async function loadGalleryHierarchy() {
               </div>
               <button class="btn btn-danger btn-sm" onclick="window.deleteShelfScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}')">🗑️ Shelf</button>
             </div>
-
-            <!-- 책장 프레임 및 아코디언 스택 -->
             <div class="shelf-board-rack">
         `;
 
@@ -110,28 +109,32 @@ export async function loadGalleryHierarchy() {
           const imageUrlsArr = Array.from(layerItem.imageUrls);
           const sortedBooks = [...layerItem.books].sort((a, b) => a.position - b.position);
           const firstThumb = imageUrlsArr.length > 0 ? imageUrlsArr[0] : null;
+          
+          // 전역 스토어 대신 HTML 속성에 URL을 직접 매핑 (안전성 강화)
+          const storeKey = `${room}___${shelfName}___${layer}`;
+          window.galleryPhotoStore = window.galleryPhotoStore || {};
+          window.galleryPhotoStore[storeKey] = imageUrlsArr;
+
+          // 미분석 데이터 확인 (저자가 '-' 인 경우)
+          const isUnanalyzed = sortedBooks.length === 1 && sortedBooks[0].author === '-';
 
           roomHtml += `
             <div class="accordion-layer-card" id="layerCard_${escapeHtml(room)}_${escapeHtml(shelfName)}_${layer}">
-              <!-- 아코디언 헤더 (클릭 시 토글) -->
               <div class="accordion-layer-header" onclick="window.toggleLayerAccordion('${escapeHtml(room)}', '${escapeHtml(shelfName)}', '${layer}')">
                 <div class="layer-header-left">
                   <span class="accordion-arrow">▶</span>
                   <strong class="layer-name">Layer ${layer}</strong>
                   <span class="layer-badge">${sortedBooks.length} items</span>
                 </div>
-
                 <div class="layer-header-right">
                   ${firstThumb 
-                    ? `<img src="${firstThumb}" class="layer-mini-thumb" alt="Layer ${layer} preview" />` 
+                    ? `<img src="${firstThumb}" class="layer-mini-thumb" alt="Layer preview" />` 
                     : `<span class="no-photo-badge">No photo</span>`}
                   <button class="btn btn-danger btn-sm btn-delete-layer-tight" onclick="event.stopPropagation(); window.deleteLayerScope('${escapeHtml(room)}', '${escapeHtml(shelfName)}', ${layer})">🗑️</button>
                 </div>
               </div>
 
-              <!-- 아코디언 확장 영역 (사진 트랙 & 도서 칩 리스트) -->
               <div class="accordion-layer-body" style="display: none;">
-                <!-- 1. 사진 파노라마 스크롤 트랙 (Multi-shot Sequence) -->
                 ${imageUrlsArr.length > 0 ? `
                   <div class="photo-panorama-scroll">
                     ${imageUrlsArr.map((url, idx) => `
@@ -147,9 +150,17 @@ export async function loadGalleryHierarchy() {
                   <div class="no-photo-alert">No photos registered for this layer.</div>
                 `}
 
-                <!-- 2. 도서 순서별 매핑 칩 목록 -->
                 <div class="layer-books-mapping-box">
-                  <div class="mapping-title">📖 Shelf Order (Left ➔ Right):</div>
+                  <div class="mapping-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>📖 Shelf Order (Left ➔ Right):</span>
+                    ${imageUrlsArr.length > 0 ? `
+                      <button class="btn ${isUnanalyzed ? 'btn-success' : 'btn-secondary'} btn-sm" 
+                              style="${isUnanalyzed ? '' : 'padding: 2px 6px; font-size: 0.75rem;'}"
+                              onclick="window.reanalyzeLayer('${escapeHtml(room)}', '${escapeHtml(shelfName)}', ${layer}, '${escapeHtml(storeKey)}')">
+                        ${isUnanalyzed ? `🔍 ${t('btnReanalyze') || 'Re-analyze'}` : `🔄 ${t('btnReanalyze') || 'Re-analyze'}`}
+                      </button>
+                    ` : ''}
+                  </div>
                   <div class="books-chip-grid">
                     ${sortedBooks.map(b => `
                       <div class="book-pos-chip">
@@ -162,14 +173,13 @@ export async function loadGalleryHierarchy() {
                 </div>
               </div>
             </div>
-            <!-- 선반 판자 시각 효과 -->
             <div class="shelf-plank-separator"></div>
           `;
         });
 
         roomHtml += `
-            </div> <!-- // shelf-board-rack -->
-          </div> <!-- // gallery-shelf-wrapper -->
+            </div> 
+          </div>
         `;
       });
 
@@ -183,7 +193,92 @@ export async function loadGalleryHierarchy() {
   }
 }
 
-// 아코디언 토글 인터랙션
+// 갤러리 이미지 기반 재분석 로직
+window.reanalyzeLayer = async (room, shelfName, layer, storeKey) => {
+  const imageUrls = window.galleryPhotoStore[storeKey] || [];
+  if (imageUrls.length === 0) {
+    alert(t('noImageLocal') || 'No image to analyze.');
+    return;
+  }
+
+  const targetUrl = imageUrls[0]; // 첫 번째 사진 기준 분석
+  let imageBlob;
+
+  try {
+    // ImgBB 이미지 다운로드 (CORS 우회를 위해 필요시 프록시 사용)
+    let response;
+    try {
+      response = await fetch(targetUrl);
+    } catch (e) {
+      response = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+    }
+    imageBlob = await response.blob();
+  } catch (err) {
+    console.error("Image Fetch Error:", err);
+    alert(t('corsErrorReanalyze') || 'Failed to download image from cloud server.');
+    return;
+  }
+
+  const lang = window.currentLang || 'en';
+  alert(t('reanalyzingStarted') || 'Starting re-analysis. Please wait...');
+
+  try {
+    // 1. 이미지 분석 요청
+    const newDetectedBooks = await analyzeBookshelfImage(imageBlob, lang);
+
+    if (!newDetectedBooks || newDetectedBooks.length === 0) {
+      alert(t('noBooksDetected') || 'No books detected in the image.');
+      return;
+    }
+
+    // 2. 기존 데이터 (임시 데이터 포함) 삭제
+    const q = query(collection(db, "books"),
+      where("room", "==", room),
+      where("shelfName", "==", shelfName),
+      where("shelfLayer", "==", Number(layer))
+    );
+    const querySnapshot = await getDocs(q);
+    const deletePromises = [];
+    let totalLayers = 1;
+    
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.totalLayers) totalLayers = data.totalLayers;
+      deletePromises.push(deleteDoc(doc(db, "books", docSnap.id)));
+    });
+    await Promise.all(deletePromises);
+
+    // 3. 새로 분석된 도서 저장 (기존 이미지 URL 유지)
+    const savePromises = newDetectedBooks.map((book, idx) => {
+      return addDoc(collection(db, "books"), {
+        title: book.title || 'Unknown Title',
+        author: book.author || 'Unknown Author',
+        language: book.language || 'original',
+        room: room,
+        shelfName: shelfName,
+        shelfLayer: Number(layer),
+        totalLayers: Number(totalLayers),
+        position: idx + 1,
+        imageUrls: imageUrls,
+        createdAt: serverTimestamp()
+      });
+    });
+
+    await Promise.all(savePromises);
+
+    alert(t('reanalyzeSuccess') || 'Re-analysis successful! Books have been updated.');
+    
+    // 4. UI 갱신
+    await loadGalleryHierarchy();
+    if (window._barcodeDeps && window._barcodeDeps.loadSavedBooks) {
+      window._barcodeDeps.loadSavedBooks();
+    }
+  } catch (error) {
+    console.error('Re-analyze Error:', error);
+    alert(t('failAnalyzeImage') || 'Failed to analyze image.');
+  }
+};
+
 window.toggleLayerAccordion = (room, shelfName, layer) => {
   const cardId = `layerCard_${room}_${shelfName}_${layer}`;
   const card = document.getElementById(cardId);
@@ -203,7 +298,6 @@ window.toggleLayerAccordion = (room, shelfName, layer) => {
   }
 };
 
-// 방/책장 전체 삭제
 window.deleteShelfScope = async (room, shelfName) => {
   if (confirm(`Are you sure you want to delete all books and photo records in room "${room}", bookshelf "${shelfName}"?`)) {
     try {
@@ -218,13 +312,11 @@ window.deleteShelfScope = async (room, shelfName) => {
       loadGalleryHierarchy();
       loadSavedBooks();
     } catch (error) {
-      console.error('Shelf Delete Error:', error);
       alert('Failed to delete bookshelf.');
     }
   }
 };
 
-// 특정 레이어 삭제
 window.deleteLayerScope = async (room, shelfName, layer) => {
   if (confirm(`Are you sure you want to delete records in room "${room}" - "${shelfName}", Layer ${layer}?`)) {
     try {
@@ -239,7 +331,6 @@ window.deleteLayerScope = async (room, shelfName, layer) => {
       loadGalleryHierarchy();
       loadSavedBooks();
     } catch (error) {
-      console.error('Layer Delete Error:', error);
       alert('Failed to delete layer.');
     }
   }
