@@ -3,29 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title id="appTitle">Bookfinder</title>
+  <title id="appTitle">bookfinder</title>
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 <body>
+  <!-- 로그인 컨테이너 -->
   <div id="authContainer" class="card" style="max-width: 400px; margin: 40px auto; padding: 20px;">
-    <h1 style="margin-top: 0; text-align: center;" class="app-logo">Bookfinder</h1>
+    <h1 style="margin-top: 0; text-align: center;" class="app-logo">bookfinder</h1>
     <p style="text-align: center; color: #8c6b4a; font-size: 0.9rem;">Please log in to secure your data.</p>
+    
     <label style="margin-top: 10px;">Email</label>
     <input type="email" id="authEmail" placeholder="user@example.com" autocomplete="email">
+    
     <label>Password</label>
     <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+    
     <button id="btnLogin" class="btn btn-success" style="margin-bottom: 8px;">Login</button>
   </div>
 
+  <!-- 메인 앱 전체 영역 -->
   <div id="appMainWrapper" style="display: none;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-      <h1 class="app-logo" style="margin: 0;">Bookfinder</h1>
+      <h1 class="app-logo" style="margin: 0;">bookfinder</h1>
       <button id="btnLogout" class="btn btn-danger btn-sm">Logout</button>
     </div>
 
-    <!-- 🏠 책장 메뉴 -->
+    <!-- 책장 아코디언 애니메이션 메뉴 -->
     <div id="mainDashboard">
       <div class="bookshelf-menu">
+        
+        <!-- 1. 책장 구성 -->
         <div class="menu-book active" onclick="handleBookClick(this, 'setupView')">
           <div class="book-spine"><span id="spineSetupTitle">Shelf Setup</span></div>
           <div class="book-cover">
@@ -33,6 +40,8 @@
             <span id="menuSetupDesc" class="menu-desc">(Fast Photo Upload)</span>
           </div>
         </div>
+        
+        <!-- 2. 실시간 분석 -->
         <div class="menu-book" onclick="handleBookClick(this, 'scanView')">
           <div class="book-spine"><span id="spineScanTitle">Live Analysis</span></div>
           <div class="book-cover">
@@ -40,6 +49,8 @@
             <span id="menuScanDesc" class="menu-desc">(Upload & Register)</span>
           </div>
         </div>
+
+        <!-- 3. 갤러리 -->
         <div class="menu-book" onclick="handleBookClick(this, 'galleryView')">
           <div class="book-spine"><span id="spineGalleryTitle">Gallery</span></div>
           <div class="book-cover">
@@ -47,7 +58,8 @@
             <span id="menuGalleryDesc" class="menu-desc">(Batch Re-analyze)</span>
           </div>
         </div>
-        <!-- 💡 Search Books -> Library 로 변경 -->
+
+        <!-- 4. 라이브러리 (기존 도서 검색) -->
         <div class="menu-book" onclick="handleBookClick(this, 'searchView')">
           <div class="book-spine"><span id="spineSearchTitle">Library</span></div>
           <div class="book-cover">
@@ -55,6 +67,8 @@
             <span id="menuSearchDesc" class="menu-desc">(Inventory Lookup)</span>
           </div>
         </div>
+
+        <!-- 5. 바코드 입력 -->
         <div class="menu-book" onclick="handleBookClick(this, 'barcodeView')">
           <div class="book-spine"><span id="spineBarcodeTitle">Barcode Input</span></div>
           <div class="book-cover">
@@ -62,6 +76,8 @@
             <span id="menuBarcodeDesc" class="menu-desc">(Add Individual Book)</span>
           </div>
         </div>
+
+        <!-- 6. 사이트 관리 -->
         <div class="menu-book" onclick="handleBookClick(this, 'manageView')">
           <div class="book-spine"><span id="spineManageTitle">Site Management</span></div>
           <div class="book-cover">
@@ -69,6 +85,7 @@
             <span id="menuManageDesc" class="menu-desc">(Language & Data)</span>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -77,69 +94,114 @@
       <button class="btn btn-secondary btn-sm" id="backToMenuBtn" onclick="switchView('mainDashboard')">Back to Menu</button>
     </div>
 
-    <!-- 1. 🗄️ 책장 구성 뷰 -->
+    <!-- 1. 책장 구성 뷰 (빠른 업로드) -->
     <div id="setupView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="setupViewTitle" style="margin-top: 0; font-family: 'Cormorant Garamond', serif; color: #d4af37;">Basic Shelf Setup</h3>
         <p id="setupViewDesc" style="font-size: 0.9rem; color: #8c6b4a; margin-bottom:15px;">Quickly save multiple photos...</p>
-        <label id="setupRoomLabel">Room Name</label><select id="setupRoomSelect" style="margin-bottom: 8px;"></select>
+
+        <label id="setupRoomLabel">Room Name</label>
+        <select id="setupRoomSelect" style="margin-bottom: 8px;"></select>
         <input type="text" id="setupRoomInput" style="display: none; margin-bottom: 14px;">
-        <label id="setupShelfLabel">Bookcase Name</label><select id="setupShelfSelect" style="margin-bottom: 8px;"></select>
+
+        <label id="setupShelfLabel">Bookcase Name</label>
+        <select id="setupShelfSelect" style="margin-bottom: 8px;"></select>
         <input type="text" id="setupShelfInput" style="display: none; margin-bottom: 14px;">
+
         <div style="display: flex; gap: 10px;">
-          <div style="flex: 1;"><label id="setupLblTotalLayers">Total Layers</label><input type="number" id="setupTotalLayers" min="1" max="20" value="5"></div>
-          <div style="flex: 1;"><label id="setupLblCurrentLayer">Current Layer</label><select id="setupShelfLayer"></select></div>
+          <div style="flex: 1;">
+            <label id="setupLblTotalLayers">Total Layers</label>
+            <input type="number" id="setupTotalLayers" min="1" max="20" value="5">
+          </div>
+          <div style="flex: 1;">
+            <label id="setupLblCurrentLayer">Current Layer</label>
+            <select id="setupShelfLayer"></select>
+          </div>
         </div>
+
         <input type="file" id="setupCameraInput" accept="image/*" multiple style="display: none;">
-        <button class="btn btn-secondary" id="btnSetupPhoto" onclick="document.getElementById('setupCameraInput').click()" style="margin-top: 12px;">Select Multiple Photos</button>
+        <button class="btn btn-secondary" id="btnSetupPhoto" onclick="document.getElementById('setupCameraInput').click()" style="margin-top: 12px;">
+          Select Multiple Photos
+        </button>
         <div id="setupPreviewContainer" style="margin-top:10px; display:flex; gap:5px; overflow-x:auto;"></div>
+
         <button id="setupSaveBtn" class="btn btn-success" style="margin-top: 15px; display: none;">Save to Database</button>
       </div>
     </div>
 
-    <!-- 2. 📖 실시간 분석 뷰 -->
+    <!-- 2. 실시간 분석 뷰 -->
     <div id="scanView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="scanViewTitle" style="margin-top: 0; font-family: 'Cormorant Garamond', serif; color: #d4af37;">Book Input & Scan</h3>
+        
         <label id="lblTargetLang" style="color: #d4af37;">Book Title Output Language</label>
         <select id="targetLanguage" style="margin-bottom: 10px;">
-          <option value="German" selected>German (Deutsch)</option><option value="English">English</option><option value="Original">Original Text</option><option value="CUSTOM">Custom Language...</option>
+          <option value="German" selected>German (Deutsch)</option>
+          <option value="English">English</option>
+          <option value="Original">Original Text</option>
+          <option value="CUSTOM">Custom Language...</option>
         </select>
         <input type="text" id="customLanguageInput" style="display: none; margin-bottom: 10px;">
-        <label id="roomInputLabel">Room Name</label><select id="roomSelect" style="margin-bottom: 8px;"></select>
+
+        <label id="roomInputLabel">Room Name</label>
+        <select id="roomSelect" style="margin-bottom: 8px;"></select>
         <input type="text" id="roomInput" style="display: none; margin-bottom: 14px;">
-        <label id="shelfNameLabel">Bookcase Name</label><select id="shelfSelect" style="margin-bottom: 8px;"></select>
+
+        <label id="shelfNameLabel">Bookcase Name</label>
+        <select id="shelfSelect" style="margin-bottom: 8px;"></select>
         <input type="text" id="shelfInput" style="display: none; margin-bottom: 14px;">
+
         <div style="display: flex; gap: 10px;">
-          <div style="flex: 1;"><label id="lblTotalLayers">Total Layers</label><input type="number" id="totalLayers" min="1" max="20" value="5"></div>
-          <div style="flex: 1;"><label id="lblCurrentLayer">Current Layer</label><select id="shelfLayer"></select></div>
+          <div style="flex: 1;">
+            <label id="lblTotalLayers">Total Layers</label>
+            <input type="number" id="totalLayers" min="1" max="20" value="5">
+          </div>
+          <div style="flex: 1;">
+            <label id="lblCurrentLayer">Current Layer</label>
+            <select id="shelfLayer"></select>
+          </div>
         </div>
-        <div style="margin-top: 10px;"><label id="lblShotsCount">Photos per Layer</label><input type="number" id="shotsPerLayer" min="1" max="5" value="1"></div>
+
+        <div style="margin-top: 10px;">
+          <label id="lblShotsCount">Photos per Layer</label>
+          <input type="number" id="shotsPerLayer" min="1" max="5" value="1">
+        </div>
+
         <input type="file" id="cameraInput" accept="image/*" style="display: none;">
-        <button class="btn btn-secondary" id="btnPhoto" onclick="document.getElementById('cameraInput').click()" style="margin-top: 12px; width: 100%;">Take / Upload Photo</button>
+        <button class="btn btn-secondary" id="btnPhoto" onclick="document.getElementById('cameraInput').click()" style="margin-top: 12px; width: 100%;">
+          Take / Upload Photo
+        </button>
       </div>
+
       <div id="loading" style="display: none;">Analyzing book spines... Please wait.</div>
+
       <div id="resultCard" class="card" style="display: none;">
         <h3 id="txtDetectedBooks" style="margin-top: 0; font-family: 'Cormorant Garamond', serif; color: #d4af37;">Detected Books</h3>
-        <div style="margin-bottom: 12px; text-align: center;"><img id="capturedImagePreview" src="" alt="Shelf Preview" style="max-width: 100%; max-height: 220px; border-radius: 6px; border: 1px solid #5c4a3d; display: none;" /></div>
+        <div style="margin-bottom: 12px; text-align: center;">
+          <img id="capturedImagePreview" src="" alt="Shelf Preview" style="max-width: 100%; max-height: 220px; border-radius: 6px; border: 1px solid #5c4a3d; display: none;" />
+        </div>
         <div id="bookList"></div>
         <button id="saveBtn" class="btn btn-success" style="margin-top: 10px; width: 100%;">Save to Database</button>
       </div>
     </div>
 
-    <!-- 3. 🖼️ 갤러리 뷰 -->
+    <!-- 3. 갤러리 뷰 -->
     <div id="galleryView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="galleryViewTitle" style="margin-top: 0; font-family: 'Cormorant Garamond', serif; color: #d4af37;">Bookshelf Gallery</h3>
-        <div id="galleryContainer"><p id="galleryPlaceholder" style="color: #8c6b4a;">Bookshelf photo gallery will be displayed here.</p></div>
+        <div id="galleryContainer">
+          <p id="galleryPlaceholder" style="color: #8c6b4a;">Bookshelf photo gallery will be displayed here.</p>
+        </div>
       </div>
     </div>
 
-    <!-- 4. 🔍 라이브러리 (기존 도서 검색) 뷰 -->
+    <!-- 4. 라이브러리 뷰 -->
     <div id="searchView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="searchViewTitle" style="margin-top: 0; font-family: 'Cormorant Garamond', serif; color: #d4af37;">Library</h3>
-        <div style="margin-bottom: 12px;"><input type="text" id="searchInput" placeholder="Search by title or author..."></div>
+        <div style="margin-bottom: 12px;">
+          <input type="text" id="searchInput" placeholder="Search by title or author...">
+        </div>
         <div class="filter-box">
           <label id="lblFilterGroup">Filter Options</label>
           <div style="display: flex; flex-direction: column; gap: 6px;">
@@ -152,41 +214,69 @@
       </div>
     </div>
 
-    <!-- 5. 📷 바코드 입력 뷰 -->
+    <!-- 5. 바코드 입력 뷰 -->
     <div id="barcodeView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="barcodeViewTitle" style="margin-top: 0; font-family: 'Cormorant Garamond', serif; color: #d4af37;">Barcode Input</h3>
         <p id="barcodeDesc" style="font-size: 0.9rem; color: #8c6b4a;">Specify the position where the book will be placed, then scan or enter the ISBN.</p>
-        <label id="bcRoomLabel">Room Name</label><select id="bcRoomInput" style="margin-bottom: 8px;"></select>
-        <label id="bcShelfLabel">Bookcase Name</label><select id="bcShelfInput" style="margin-bottom: 8px;"></select>
+        
+        <label id="bcRoomLabel">Room Name</label>
+        <select id="bcRoomInput" style="margin-bottom: 8px;"></select>
+        
+        <label id="bcShelfLabel">Bookcase Name</label>
+        <select id="bcShelfInput" style="margin-bottom: 8px;"></select>
+
         <div style="display: flex; gap: 10px;">
-          <div style="flex: 1;"><label id="bcLayerLabel">Layer</label><input type="number" id="bcLayerInput" min="1" value="1"></div>
-          <div style="flex: 1;"><label id="bcPositionLabel">Position</label><input type="number" id="bcPositionInput" min="1" value="1"></div>
+          <div style="flex: 1;">
+            <label id="bcLayerLabel">Layer</label>
+            <input type="number" id="bcLayerInput" min="1" value="1">
+          </div>
+          <div style="flex: 1;">
+            <label id="bcPositionLabel">Position</label>
+            <input type="number" id="bcPositionInput" min="1" value="1">
+          </div>
         </div>
+
         <label id="isbnLabel" style="margin-top: 10px;">ISBN Code</label>
         <div id="reader" style="width: 100%; max-width: 400px; margin: 10px auto; display: none;"></div>
+        
         <button type="button" id="startLiveScanBtn" class="btn btn-secondary" style="margin-bottom: 8px;">Start Scanner</button>
         <button type="button" id="stopLiveScanBtn" class="btn btn-danger" style="margin-bottom: 8px; display: none;">Stop Scanner</button>
+
         <div style="display: flex; gap: 8px; margin-top: 4px;">
-          <input type="text" id="isbnInput" style="flex: 1;"><button type="button" id="fetchIsbnBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Fetch</button>
+          <input type="text" id="isbnInput" style="flex: 1;">
+          <button type="button" id="fetchIsbnBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Fetch</button>
         </div>
-        <div style="margin-top: 10px;"><label>Book Title</label><input type="text" id="bcTitleInput"></div>
-        <div style="margin-top: 4px;"><label>Author</label><input type="text" id="bcAuthorInput"></div>
+
+        <div style="margin-top: 10px;">
+          <label>Book Title</label>
+          <input type="text" id="bcTitleInput">
+        </div>
+        <div style="margin-top: 4px;">
+          <label>Author</label>
+          <input type="text" id="bcAuthorInput">
+        </div>
+
         <button id="submitIsbnBtn" class="btn btn-success" style="margin-top: 12px;">Add Book</button>
       </div>
     </div>
 
-    <!-- 6. ⚙️ 사이트 관리 -->
+    <!-- 6. 사이트 관리 뷰 -->
     <div id="manageView" class="sub-view" style="display: none;">
       <div class="card">
         <h3 id="manageViewTitle" style="margin-top: 0; font-family: 'Cormorant Garamond', serif; color: #d4af37;">Site Management</h3>
+        
         <div class="filter-box" style="margin-bottom: 20px;">
           <label id="lblUiLang" style="color: #d4af37;">App Language</label>
           <select id="uiLanguageSelect" style="margin-bottom: 0;">
-            <option value="en" selected>English</option><option value="de">Deutsch</option><option value="ko">한국어</option>
+            <option value="en" selected>English</option>
+            <option value="de">Deutsch</option>
+            <option value="ko">한국어</option>
           </select>
         </div>
+
         <p id="manageViewDesc" style="font-size: 0.9rem; color: #8c6b4a;">Select a specific room, bookcase, or layer to delete its records entirely.</p>
+        
         <div class="filter-box" style="background: #2a1616; border-color: #5a2020;">
           <label style="color: #d4af37;">Scope to Delete</label>
           <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -199,11 +289,11 @@
       </div>
     </div>
 
-    <!-- ✏️ 도서 정보 수정 (삭제 및 사진보기 버튼 통합됨) -->
+    <!-- 도서 정보 수정 모달 (사진보기 / 휴지통 아이콘 포함) -->
     <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(26,20,18,0.85); align-items: center; justify-content: center; z-index: 1000;">
       <div class="card" style="width: 90%; max-width: 400px; margin: 0; max-height: 90vh; overflow-y: auto;">
         
-        <!-- 💡 에디트 모달창 헤더 우측에 사진 보기(🖼️) 및 삭제(🗑️) 아이콘 배치 -->
+        <!-- 에디트 모달창 헤더 우측: 사진 보기 & 휴지통 아이콘 -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3 style="margin: 0; font-family: 'Cormorant Garamond', 'Gowun Batang', serif; color: #d4af37;">Edit Book Info</h3>
           <div style="display: flex; gap: 15px;">
@@ -212,26 +302,45 @@
           </div>
         </div>
         
-        <label>Book Title</label><input type="text" id="editTitle">
-        <label>Author</label><input type="text" id="editAuthor">
+        <label>Book Title</label>
+        <input type="text" id="editTitle">
+        
+        <label>Author</label>
+        <input type="text" id="editAuthor">
+        
         <label>ISBN / Barcode</label>
         <input type="text" id="editIsbn">
         <button id="fetchIsbnInModal" class="btn btn-secondary btn-sm" style="width: 100%;">Fetch Info via ISBN</button>
         
         <div style="display: flex; gap: 10px; margin-top: 10px;">
-          <div style="flex: 1;"><label>Room</label><input type="text" id="editRoom"></div>
-          <div style="flex: 1;"><label>Shelf</label><input type="text" id="editShelf"></div>
+          <div style="flex: 1;">
+            <label>Room</label>
+            <input type="text" id="editRoom">
+          </div>
+          <div style="flex: 1;">
+            <label>Shelf</label>
+            <input type="text" id="editShelf">
+          </div>
         </div>
+
         <div style="display: flex; gap: 10px;">
-          <div style="flex: 1;"><label>Layer</label><input type="number" id="editLayer" min="1"></div>
-          <div style="flex: 1;"><label>Position</label><input type="number" id="editPosition" min="1"></div>
+          <div style="flex: 1;">
+            <label>Layer</label>
+            <input type="number" id="editLayer" min="1">
+          </div>
+          <div style="flex: 1;">
+            <label>Position</label>
+            <input type="number" id="editPosition" min="1">
+          </div>
         </div>
+
         <div style="display: flex; gap: 10px; margin-top: 15px;">
           <button id="saveEditBtn" class="btn btn-success" style="flex: 1;">Save</button>
           <button id="cancelEditBtn" class="btn btn-secondary" style="flex: 1;">Cancel</button>
         </div>
       </div>
     </div>
+  </div>
 
   <script type="module" src="./src/main.js"></script>
 </body>

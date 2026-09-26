@@ -1,264 +1,279 @@
-// src/bookList.js
+// src/booklist.js
 import { db } from './firebase.js';
-import { 
-  collection, getDocs, query, orderBy, 
-  doc, deleteDoc, where 
-} from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { i18n } from './i18n.js';
-import { escapeHtml } from './ui.js';
 
-let filterRoom, filterShelf, filterLayer, searchInput, savedBookList;
+let currentLangCallback = () => 'en';
+let openEditModalCallback = null;
+let allSavedBooks = [];
 
-export function initBookListModule(deps) {
-  filterRoom = document.getElementById('filterRoom');
-  filterShelf = document.getElementById('filterShelf');
-  filterLayer = document.getElementById('filterLayer');
-  searchInput = document.getElementById('searchInput');
-  savedBookList = document.getElementById('savedBookList');
+export function initBookListModule(config) {
+  currentLangCallback = config.getCurrentLang;
+  openEditModalCallback = config.openEditModalCallback;
 
-  const { getCurrentLang, openEditModalCallback } = deps;
-  window._bookListDeps = { getCurrentLang, openEditModalCallback };
+  const searchInput = document.getElementById('searchInput');
+  const filterRoom = document.getElementById('filterRoom');
+  const filterShelf = document.getElementById('filterShelf');
+  const filterLayer = document.getElementById('filterLayer');
 
-  // 이벤트 리스너 바인딩
-  filterRoom?.addEventListener('change', handleRoomChange);
-  filterShelf?.addEventListener('change', handleShelfChange);
-  filterLayer?.addEventListener('change', loadSavedBooks);
-  searchInput?.addEventListener('input', loadSavedBooks);
-
-  // 전역 함수 등록
-  window.deleteBook = deleteBook;
-  window.viewCloudImage = viewCloudImage;
-  window.viewCloudImages = viewCloudImages;
+  searchInput?.addEventListener('input', filterAndRenderBooks);
+  filterRoom?.addEventListener('change', () => {
+    updateShelfDropdown();
+    filterAndRenderBooks();
+  });
+  filterShelf?.addEventListener('change', () => {
+    updateLayerDropdown();
+    filterAndRenderBooks();
+  });
+  filterLayer?.addEventListener('change', filterAndRenderBooks);
 }
 
-function getLang() {
-  return window._bookListDeps?.getCurrentLang() || 'en';
-}
-
-// 방 드롭다운 갱신
 export async function updateRoomDropdown() {
+  const filterRoom = document.getElementById('filterRoom');
   if (!filterRoom) return;
-  const lang = getLang();
-  const t = i18n[lang] || i18n['en'];
+  const currentVal = filterRoom.value;
+  
   try {
     const querySnapshot = await getDocs(collection(db, "books"));
     const rooms = new Set();
-    querySnapshot.forEach(docSnap => {
-      if (docSnap.data().room) rooms.add(docSnap.data().room);
-    });
+    allSavedBooks = [];
 
-    filterRoom.innerHTML = `<option value="ALL">${t.allRooms}</option>`;
-    rooms.forEach(room => {
-      filterRoom.innerHTML += `<option value="${room}">${room}</option>`;
-    });
-  } catch (error) {
-    console.error('Room List Error:', error);
-  }
-}
-
-async function updateShelfDropdown(room) {
-  if (!filterShelf) return;
-  const lang = getLang();
-  const t = i18n[lang] || i18n['en'];
-  try {
-    const q = query(collection(db, "books"), where("room", "==", room));
-    const querySnapshot = await getDocs(q);
-    const shelves = new Set();
-    
-    querySnapshot.forEach(docSnap => {
-      if (docSnap.data().shelfName) shelves.add(docSnap.data().shelfName);
-    });
-
-    filterShelf.innerHTML = `<option value="ALL">${t.allShelves}</option>`;
-    shelves.forEach(shelf => {
-      filterShelf.innerHTML += `<option value="${shelf}">${shelf}</option>`;
-    });
-  } catch (error) {
-    console.error('Shelf List Error:', error);
-  }
-}
-
-async function updateLayerFilterOptions(room, shelf) {
-  if (!filterLayer) return;
-  const lang = getLang();
-  const t = i18n[lang] || i18n['en'];
-  try {
-    const q = query(collection(db, "books"), where("room", "==", room), where("shelfName", "==", shelf));
-    const querySnapshot = await getDocs(q);
-    
-    let maxLayer = 1;
     querySnapshot.forEach(docSnap => {
       const data = docSnap.data();
-      if (data.totalLayers && data.totalLayers > maxLayer) maxLayer = data.totalLayers;
-      else if (data.shelfLayer && data.shelfLayer > maxLayer) maxLayer = data.shelfLayer;
+      allSavedBooks.push({ id: docSnap.id, ...data });
+      if (data.room) rooms.add(data.room);
     });
 
-    filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
-    for (let i = 1; i <= maxLayer; i++) {
-      filterLayer.innerHTML += `<option value="${i}">${t.layerPrefix} ${i}</option>`;
-    }
+    filterRoom.innerHTML = `<option value="ALL">${getTranslation('allRooms') || 'All Rooms'}</option>`;
+    Array.from(rooms).sort().forEach(room => {
+      const opt = document.createElement('option');
+      opt.value = room;
+      opt.textContent = room;
+      filterRoom.appendChild(opt);
+    });
+
+    if (rooms.has(currentVal)) filterRoom.value = currentVal;
+    else filterRoom.value = 'ALL';
+
+    updateShelfDropdown();
+    filterAndRenderBooks();
   } catch (error) {
-    console.error('Layer Filter Error:', error);
+    console.error("Error updating room dropdown:", error);
   }
 }
 
-async function handleRoomChange() {
-  const lang = getLang();
-  const t = i18n[lang] || i18n['en'];
+function updateShelfDropdown() {
+  const filterRoom = document.getElementById('filterRoom');
+  const filterShelf = document.getElementById('filterShelf');
+  const filterLayer = document.getElementById('filterLayer');
+  if (!filterRoom || !filterShelf) return;
+
   const selectedRoom = filterRoom.value;
+  const currentVal = filterShelf.value;
+  filterShelf.innerHTML = `<option value="ALL">${getTranslation('allShelves') || 'All Bookcases'}</option>`;
+
   if (selectedRoom === 'ALL') {
-    if (filterShelf) {
-      filterShelf.innerHTML = `<option value="ALL">${t.allShelves}</option>`;
-      filterShelf.disabled = true;
-    }
+    filterShelf.disabled = true;
     if (filterLayer) {
-      filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
       filterLayer.disabled = true;
+      filterLayer.innerHTML = `<option value="ALL">${getTranslation('allLayers') || 'All Layers'}</option>`;
     }
-  } else {
-    if (filterShelf) filterShelf.disabled = false;
-    await updateShelfDropdown(selectedRoom);
+    filterAndRenderBooks();
+    return;
   }
-  if (filterLayer) filterLayer.value = 'ALL';
-  loadSavedBooks();
+
+  filterShelf.disabled = false;
+  const shelves = new Set();
+  allSavedBooks.forEach(book => {
+    if (book.room === selectedRoom && book.shelfName) {
+      shelves.add(book.shelfName);
+    }
+  });
+
+  Array.from(shelves).sort().forEach(shelf => {
+    const opt = document.createElement('option');
+    opt.value = shelf;
+    opt.textContent = shelf;
+    filterShelf.appendChild(opt);
+  });
+
+  if (shelves.has(currentVal)) filterShelf.value = currentVal;
+  else filterShelf.value = 'ALL';
+
+  updateLayerDropdown();
 }
 
-async function handleShelfChange() {
-  const lang = getLang();
-  const t = i18n[lang] || i18n['en'];
-  const selectedRoom = filterRoom ? filterRoom.value : 'ALL';
+function updateLayerDropdown() {
+  const filterRoom = document.getElementById('filterRoom');
+  const filterShelf = document.getElementById('filterShelf');
+  const filterLayer = document.getElementById('filterLayer');
+  if (!filterRoom || !filterShelf || !filterLayer) return;
+
+  const selectedRoom = filterRoom.value;
   const selectedShelf = filterShelf.value;
+  const currentVal = filterLayer.value;
+  filterLayer.innerHTML = `<option value="ALL">${getTranslation('allLayers') || 'All Layers'}</option>`;
 
   if (selectedShelf === 'ALL') {
-    if (filterLayer) {
-      filterLayer.innerHTML = `<option value="ALL">${t.allLayers}</option>`;
-      filterLayer.disabled = true;
-    }
-  } else {
-    if (filterLayer) filterLayer.disabled = false;
-    await updateLayerFilterOptions(selectedRoom, selectedShelf);
+    filterLayer.disabled = true;
+    filterAndRenderBooks();
+    return;
   }
-  loadSavedBooks();
+
+  filterLayer.disabled = false;
+  const layers = new Set();
+  allSavedBooks.forEach(book => {
+    if (book.room === selectedRoom && book.shelfName === selectedShelf && book.shelfLayer) {
+      layers.add(Number(book.shelfLayer));
+    }
+  });
+
+  Array.from(layers).sort((a, b) => a - b).forEach(layer => {
+    const opt = document.createElement('option');
+    opt.value = layer;
+    opt.textContent = `Layer ${layer}`;
+    filterLayer.appendChild(opt);
+  });
+
+  if (layers.has(Number(currentVal))) filterLayer.value = currentVal;
+  else filterLayer.value = 'ALL';
+
+  filterAndRenderBooks();
 }
 
-// 저장된 도서 목록 불러오기 및 렌더링
 export async function loadSavedBooks() {
-  if (!savedBookList) return;
-  const lang = getLang();
-  const t = i18n[lang] || i18n['en'];
-  savedBookList.innerHTML = '<small>Loading books...</small>';
-  try {
-    const room = filterRoom ? filterRoom.value : 'ALL';
-    const shelf = filterShelf ? filterShelf.value : 'ALL';
-    const layer = filterLayer ? filterLayer.value : 'ALL';
-    const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  await updateRoomDropdown();
+}
 
-    let q;
-    if (room === 'ALL') {
-      q = query(collection(db, "books"), orderBy("createdAt", "desc"));
-    } else {
-      let conditions = [where("room", "==", room)];
-      if (shelf !== 'ALL') conditions.push(where("shelfName", "==", shelf));
-      if (layer !== 'ALL') conditions.push(where("shelfLayer", "==", Number(layer)));
-      q = query(collection(db, "books"), ...conditions);
-    }
+function filterAndRenderBooks() {
+  const searchInput = document.getElementById('searchInput');
+  const filterRoom = document.getElementById('filterRoom');
+  const filterShelf = document.getElementById('filterShelf');
+  const filterLayer = document.getElementById('filterLayer');
+  const savedBookListContainer = document.getElementById('savedBookList');
 
-    const querySnapshot = await getDocs(q);
-    savedBookList.innerHTML = '';
+  if (!savedBookListContainer) return;
 
-    let hasResults = false;
+  const searchTerm = (searchInput?.value || '').toLowerCase().trim();
+  const roomVal = filterRoom?.value || 'ALL';
+  const shelfVal = filterShelf?.value || 'ALL';
+  const layerVal = filterLayer?.value || 'ALL';
 
-    querySnapshot.forEach((docSnap) => {
-      const book = docSnap.data();
-      const bookId = docSnap.id;
+  const filtered = allSavedBooks.filter(book => {
+    const title = (book.title || '').toLowerCase();
+    const author = (book.author || '').toLowerCase();
+    const matchesSearch = !searchTerm || title.includes(searchTerm) || author.includes(searchTerm);
+    const matchesRoom = roomVal === 'ALL' || book.room === roomVal;
+    const matchesShelf = shelfVal === 'ALL' || book.shelfName === shelfVal;
+    const matchesLayer = layerVal === 'ALL' || Number(book.shelfLayer) === Number(layerVal);
+    return matchesSearch && matchesRoom && matchesShelf && matchesLayer;
+  });
 
-      const titleMatch = book.title && book.title.toLowerCase().includes(keyword);
-      const authorMatch = book.author && book.author.toLowerCase().includes(keyword);
+  filtered.sort((a, b) => {
+    if (a.room !== b.room) return (a.room || '').localeCompare(b.room || '');
+    if (a.shelfName !== b.shelfName) return (a.shelfName || '').localeCompare(b.shelfName || '');
+    if (a.shelfLayer !== b.shelfLayer) return (Number(a.shelfLayer) || 1) - (Number(b.shelfLayer) || 1);
+    return (Number(a.position) || 1) - (Number(b.position) || 1);
+  });
 
-      if (keyword !== '' && !titleMatch && !authorMatch) {
-        return;
+  renderBookItems(filtered, savedBookListContainer);
+}
+
+function renderBookItems(books, container) {
+  container.innerHTML = '';
+  if (books.length === 0) {
+    container.innerHTML = `<p style="text-align: center; color: #8c6b4a; padding: 20px;">No books found.</p>`;
+    return;
+  }
+
+  books.forEach(book => {
+    const itemEl = document.createElement('div');
+    itemEl.style.cssText = `
+      position: relative;
+      background: #231a15;
+      border: 1px solid #4a3a2f;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 15px;
+    `;
+
+    const infoDiv = document.createElement('div');
+    infoDiv.style.cssText = 'flex: 1; min-width: 0;';
+
+    const titleEl = document.createElement('div');
+    titleEl.textContent = book.title || 'Unknown Title';
+    titleEl.style.cssText = `
+      font-size: 1.15rem;
+      font-weight: 500;
+      color: #d4af37;
+      margin-bottom: 6px;
+      word-break: break-word;
+    `;
+
+    const authorEl = document.createElement('div');
+    authorEl.textContent = `Author: ${book.author || 'Unknown'}`;
+    authorEl.style.cssText = `
+      font-size: 0.95rem;
+      color: #c1a88a;
+      margin-bottom: 4px;
+    `;
+
+    const locationEl = document.createElement('div');
+    locationEl.innerHTML = `📍 <span style="color: #e8dcc4; font-weight: 600;">${book.room || 'Room'}</span> ➔ ${book.shelfName || 'Shelf'} (Layer ${book.shelfLayer || 1}, Pos. ${book.position || 1})`;
+    locationEl.style.cssText = `
+      font-size: 0.85rem;
+      color: #a68153;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    `;
+
+    infoDiv.appendChild(titleEl);
+    infoDiv.appendChild(authorEl);
+    infoDiv.appendChild(locationEl);
+
+    const btnContainer = document.createElement('div');
+    btnContainer.style.cssText = 'flex-shrink: 0;';
+
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.style.cssText = `
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-weight: 400;
+      background: linear-gradient(145deg, #4a3a2f, #2a2019);
+      border: 1px solid #5c4a3d;
+      color: #f8f1e4;
+      border-radius: 6px;
+      cursor: pointer;
+    `;
+    editBtn.addEventListener('click', () => {
+      if (openEditModalCallback) {
+        openEditModalCallback(
+          book.id,
+          book.title,
+          book.author,
+          book.room,
+          book.shelfName,
+          book.shelfLayer,
+          book.position,
+          book.isbn
+        );
       }
-
-      hasResults = true;
-
-      let photoBtnHtml = '';
-      if (book.imageUrls && book.imageUrls.length > 0) {
-        photoBtnHtml = `<button class="btn btn-secondary btn-sm" onclick='viewCloudImages(${JSON.stringify(book.imageUrls)})'>📷 View Photos (${book.imageUrls.length})</button>`;
-      } else if (book.imageUrl) {
-        photoBtnHtml = `<button class="btn btn-secondary btn-sm" onclick="viewCloudImage('${book.imageUrl}')">📷 View Photo</button>`;
-      }
-
-      const item = document.createElement('div');
-      item.className = 'book-item';
-      item.innerHTML = `
-        <div class="book-title">${escapeHtml(book.title)}</div>
-        <div class="book-meta">
-          Author: ${escapeHtml(book.author)} ${book.isbn ? `<br>ISBN: ${escapeHtml(book.isbn)}` : ''}<br>
-          📍 <strong>${escapeHtml(book.room)}</strong> ➔ ${escapeHtml(book.shelfName)} (${t.layerPrefix} ${book.shelfLayer}, Pos. ${book.position})
-        </div>
-        <div class="action-btns" style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
-          ${photoBtnHtml}
-          <button class="btn btn-secondary btn-sm" id="edit-btn-${bookId}">✏️ Edit / ISBN</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteBook('${bookId}', '${escapeHtml(book.title)}')">🗑️ Delete</button>
-        </div>
-      `;
-      
-      const editBtn = item.querySelector(`#edit-btn-${bookId}`);
-      editBtn?.addEventListener('click', () => {
-        if (window._bookListDeps?.openEditModalCallback) {
-          window._bookListDeps.openEditModalCallback(
-            bookId, 
-            book.title, 
-            book.author || '', 
-            book.room || '', 
-            book.shelfName || '', 
-            book.shelfLayer || 1, 
-            book.position || 1,
-            book.isbn || ''
-          );
-        }
-      });
-
-      savedBookList.appendChild(item);
     });
 
-    if (!hasResults) {
-      savedBookList.innerHTML = '<small>No matching books found.</small>';
-    }
-  } catch (error) {
-    console.error('Load Error:', error);
-    savedBookList.innerHTML = '<small>Failed to load books.</small>';
-  }
+    btnContainer.appendChild(editBtn);
+    itemEl.appendChild(infoDiv);
+    itemEl.appendChild(btnContainer);
+    container.appendChild(itemEl);
+  });
 }
 
-function viewCloudImage(imageUrl) {
-  if (imageUrl) {
-    const newWindow = window.open();
-    newWindow.document.write(`<img src="${imageUrl}" style="max-width:100%;" alt="Shelf Photo"/>`);
-  } else {
-    alert("Image URL not found.");
-  }
-}
-
-function viewCloudImages(imageUrls) {
-  const newWindow = window.open();
-  newWindow.document.write(`<h3>Shelf Segment Photos</h3>`);
-  for (const url of imageUrls) {
-    newWindow.document.write(`<div style="margin-bottom:15px;"><img src="${url}" style="max-width:100%; border:1px solid #ccc;" alt="Segment Photo"/></div>`);
-  }
-}
-
-async function deleteBook(bookId, title) {
-  const lang = getLang();
-  const t = i18n[lang] || i18n['en'];
-  if (confirm(`${t.confirmDeleteSingle}"${title}"`)) {
-    try {
-      await deleteDoc(doc(db, "books", bookId));
-      alert(t.alertSuccessDelete);
-      await updateRoomDropdown();
-      loadSavedBooks();
-    } catch (error) {
-      alert('Failed to delete.');
-    }
-  }
+function getTranslation(key) {
+  const lang = currentLangCallback ? currentLangCallback() : 'en';
+  return (i18n[lang] && i18n[lang][key]) || (i18n['en'] && i18n['en'][key]) || key;
 }
