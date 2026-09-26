@@ -53,11 +53,14 @@ const btnSetupPhoto = document.getElementById('btnSetupPhoto');
 const setupPreviewContainer = document.getElementById('setupPreviewContainer');
 const setupSaveBtn = document.getElementById('setupSaveBtn');
 
-// 💡 Manage View (데이터 관리 전용 뷰 요소)
 const manageRoomSelect = document.getElementById('manageRoomSelect');
 const manageShelfSelect = document.getElementById('manageShelfSelect');
 const manageLayerSelect = document.getElementById('manageLayerSelect');
 const executeDeleteBtn = document.getElementById('executeDeleteBtn');
+
+const filterRoom = document.getElementById('filterRoom');
+const filterShelf = document.getElementById('filterShelf');
+const filterLayer = document.getElementById('filterLayer');
 
 const editModal = document.getElementById('editModal');
 const editTitleInput = document.getElementById('editTitle');
@@ -89,6 +92,18 @@ initBookListModule({
 
 initGalleryModule();
 
+// 💡 책장 메뉴 클릭 시 펼침 애니메이션 처리 로직
+window.handleBookClick = (element, viewId) => {
+  // 이미 활성화된(펼쳐진) 책을 클릭하면 실제 뷰로 이동
+  if (element.classList.contains('active')) {
+    window.switchView(viewId);
+  } else {
+    // 닫힌 책을 클릭하면 다른 책들은 닫고 선택한 책만 스르륵 펼침 (Flex-grow transition)
+    document.querySelectorAll('.menu-book').forEach(book => book.classList.remove('active'));
+    element.classList.add('active');
+  }
+};
+
 async function updateScanOptions() {
   try {
     const querySnapshot = await getDocs(collection(db, "books"));
@@ -117,7 +132,7 @@ async function updateScanOptions() {
       });
       const addNewOpt = document.createElement('option');
       addNewOpt.value = '__NEW__'; 
-      addNewOpt.textContent = currentLang === 'ko' ? '➕ 새 방 추가...' : (currentLang === 'de' ? '➕ Neuer Raum...' : '➕ Add New Room...');
+      addNewOpt.textContent = currentLang === 'ko' ? '새 방 추가...' : (currentLang === 'de' ? 'Neuer Raum...' : 'Add New Room...');
       selectEl.appendChild(addNewOpt);
       if (rooms.includes(currentVal)) selectEl.value = currentVal;
       else selectEl.value = rooms[0];
@@ -146,7 +161,7 @@ function updateScanShelfOptions(rSelect, sSelect) {
   }
   const addNewOpt = document.createElement('option');
   addNewOpt.value = '__NEW__';
-  addNewOpt.textContent = currentLang === 'ko' ? '➕ 새 책장 추가...' : (currentLang === 'de' ? '➕ Neues Regal...' : '➕ Add New Bookcase...');
+  addNewOpt.textContent = currentLang === 'ko' ? '새 책장 추가...' : (currentLang === 'de' ? 'Neues Regal...' : 'Add New Bookcase...');
   sSelect.appendChild(addNewOpt);
 
   if (shelves.includes(currentVal)) sSelect.value = currentVal;
@@ -159,7 +174,7 @@ const handleRoomChange = (rSelect, rInput, sSelect) => {
   if (rSelect.value === '__NEW__') {
     if(rInput) { rInput.style.display = 'block'; rInput.focus(); }
     if(sSelect) {
-      sSelect.innerHTML = `<option value="__NEW__">${currentLang === 'ko' ? '➕ 새 책장 추가...' : '➕ Add New Bookcase...'}</option>`;
+      sSelect.innerHTML = `<option value="__NEW__">${currentLang === 'ko' ? '새 책장 추가...' : 'Add New Bookcase...'}</option>`;
       sSelect.value = '__NEW__';
       sSelect.dispatchEvent(new Event('change'));
     }
@@ -182,7 +197,6 @@ shelfSelect?.addEventListener('change', () => handleShelfChange(shelfSelect, she
 setupRoomSelect?.addEventListener('change', () => handleRoomChange(setupRoomSelect, setupRoomInput, setupShelfSelect));
 setupShelfSelect?.addEventListener('change', () => handleShelfChange(setupShelfSelect, setupShelfInput));
 
-// 💡 Manage View: 삭제 관리 옵션 구성
 async function updateManageOptions() {
   try {
     if (!manageRoomSelect) return;
@@ -303,7 +317,7 @@ window.switchView = (viewId) => {
       if (viewId === 'galleryView') loadGalleryHierarchy();
       if (viewId === 'barcodeView') loadBarcodeHierarchyOptions();
       if (viewId === 'scanView' || viewId === 'setupView') updateScanOptions();
-      if (viewId === 'manageView') updateManageOptions(); // 💡 관리 뷰 진입 시 옵션 로드
+      if (viewId === 'manageView') updateManageOptions(); 
     }
   }
   applyUiLanguage(currentLang);
@@ -322,6 +336,14 @@ function applyUiLanguage(lang) {
   setTxt('mainHeading', t.mainHeading);
   setTxt('lblUiLang', t.lblUiLang);
   
+  // 💡 메뉴 제목 뿐만 아니라 닫혀있는 세로 책등(Spine)의 언어도 완벽하게 갱신
+  setTxt('spineSetupTitle', t.menuSetupTitle);
+  setTxt('spineScanTitle', t.menuScanTitle);
+  setTxt('spineGalleryTitle', t.menuGalleryTitle);
+  setTxt('spineSearchTitle', t.menuSearchTitle);
+  setTxt('spineBarcodeTitle', t.menuBarcodeTitle);
+  setTxt('spineManageTitle', t.menuManageTitle);
+
   setTxt('menuSetupTitle', t.menuSetupTitle);
   setTxt('menuSetupDesc', t.menuSetupDesc);
   setTxt('menuScanTitle', t.menuScanTitle);
@@ -333,7 +355,6 @@ function applyUiLanguage(lang) {
   setTxt('menuBarcodeTitle', t.menuBarcodeTitle);
   setTxt('menuBarcodeDesc', t.menuBarcodeDesc);
   
-  // 💡 신규 관리 메뉴 텍스트 반영
   setTxt('menuManageTitle', t.menuManageTitle);
   setTxt('menuManageDesc', t.menuManageDesc);
   setTxt('manageViewTitle', t.manageViewTitle);
@@ -341,13 +362,14 @@ function applyUiLanguage(lang) {
   if (executeDeleteBtn) executeDeleteBtn.textContent = t.btnDeleteScope;
 
   setTxt('backToMenuBtn', t.backToMenu);
+
   setTxt('setupViewTitle', t.setupViewTitle);
   setTxt('setupViewDesc', t.setupViewDesc);
   setTxt('setupRoomLabel', t.roomInputLabel);
   setTxt('setupShelfLabel', t.shelfNameLabel);
   setTxt('setupLblTotalLayers', t.lblTotalLayers);
   setTxt('setupLblCurrentLayer', t.lblCurrentLayer);
-  if (btnSetupPhoto) btnSetupPhoto.textContent = t.btnSetupPhoto || '📸 Take / Upload Photo';
+  if (btnSetupPhoto) btnSetupPhoto.textContent = t.btnSetupPhoto || 'Take / Upload Photo';
   if (setupSaveBtn) setupSaveBtn.textContent = t.saveBtn;
 
   setTxt('scanViewTitle', t.scanViewTitle);
@@ -423,7 +445,7 @@ setupCameraInput?.addEventListener('change', (e) => {
     img.src = URL.createObjectURL(f);
     img.style.height = '80px';
     img.style.borderRadius = '4px';
-    img.style.border = '1px solid #ccc';
+    img.style.border = '1px solid #d4cdc3';
     setupPreviewContainer.appendChild(img);
   });
   if (setupSaveBtn) setupSaveBtn.style.display = 'block';
@@ -535,7 +557,7 @@ cameraInput?.addEventListener('change', async (event) => {
     renderScannedBooks(accumulatedBooks, resultCard, bookList);
     if (accumulatedBooks.length === 0) {
       resultCard.style.display = 'block';
-      bookList.innerHTML = `<p style="text-align:center; color:#666;">${tStr.noBooksDetected}</p>`;
+      bookList.innerHTML = `<p style="text-align:center; color:#8c6b4a;">${tStr.noBooksDetected}</p>`;
     }
   }
 });
@@ -622,7 +644,7 @@ fetchIsbnInModal?.addEventListener('click', async () => {
   } catch (err) {
     alert('Could not fetch book info.');
   } finally {
-    if (fetchIsbnInModal) fetchIsbnInModal.textContent = '🔄 Fetch Info via ISBN';
+    if (fetchIsbnInModal) fetchIsbnInModal.textContent = 'Fetch Info via ISBN';
   }
 });
 
@@ -657,7 +679,6 @@ saveEditBtn?.addEventListener('click', async () => {
   }
 });
 
-// 💡 관리 뷰 (manageView) 통합 삭제 실행 로직
 executeDeleteBtn?.addEventListener('click', async () => {
   const t = i18n[currentLang] || i18n['en'];
   const room = manageRoomSelect ? manageRoomSelect.value : 'ALL';
@@ -687,7 +708,7 @@ executeDeleteBtn?.addEventListener('click', async () => {
       
       await updateRoomDropdown();
       updateScanOptions();
-      updateManageOptions(); // 💡 삭제 후 관리 목록 갱신
+      updateManageOptions();
       loadSavedBooks();
     } catch (error) {
       console.error('Group Delete Error:', error);

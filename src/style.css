@@ -1,420 +1,244 @@
-/* src/style.css */
+/* src/style.css - Vintage Leather Grimoire + Bookshelf Animation */
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Gowun+Batang:wght@400;700&display=swap');
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Cormorant Garamond', 'Gowun Batang', "Georgia", "Times New Roman", serif;
   max-width: 500px;
   margin: 0 auto;
   padding: 20px;
-  background-color: #f8f9fa;
-  color: #333;
+  background-color: #1a1412;
+  color: #e8dcc4;
 }
 
-h1 {
-  font-size: 1.4rem;
+/* 💡 상단 앱 이름: 길쭉하고 우아한 영문 필기체 */
+.app-logo {
+  font-family: 'Alex Brush', cursive;
+  color: #d4af37;
+  font-size: 3.5rem;
+  font-weight: 400;
   text-align: center;
-  color: #1a1a1a;
   margin-bottom: 20px;
+  letter-spacing: 2px;
+  text-shadow: 2px 3px 5px rgba(0,0,0,0.9);
 }
 
 .card {
-  background: white;
+  background: #2a201a; 
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #4a3a2f;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
   margin-bottom: 20px;
 }
 
 label {
-  font-weight: 600;
+  font-weight: 700;
   display: block;
-  margin-bottom: 6px;
-  font-size: 0.95rem;
+  margin-bottom: 8px;
+  font-size: 1.15rem;
+  color: #c1a88a;
+  letter-spacing: 0.5px;
 }
 
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-select {
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], select {
   width: 100%;
-  padding: 11px;
-  margin-bottom: 14px;
-  border: 1px solid #cccccc;
-  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px solid #5c4a3d;
+  background-color: #140d0a;
+  border-radius: 6px;
   box-sizing: border-box;
-  font-size: 1rem;
+  font-size: 1.2rem;
+  color: #e8dcc4;
+  font-family: inherit;
+  transition: all 0.3s;
 }
 
-input[type="file"] {
-  display: none;
+input:focus, select:focus {
+  outline: none;
+  border-color: #d4af37;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
 }
+
+input[type="file"] { display: none; }
 
 .btn {
   display: block;
   width: 100%;
-  padding: 12px;
-  background: #0066cc;
-  color: white;
+  padding: 14px;
+  background: linear-gradient(145deg, #8c6a41, #614626);
+  color: #f8f1e4;
   text-align: center;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: bold;
+  border: 1px solid #a68153;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  font-weight: 700;
   cursor: pointer;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+  font-family: inherit;
+  transition: all 0.2s;
+  letter-spacing: 1px;
 }
-
-.btn-secondary {
-  background: #4a5568;
-}
-
-.btn-success {
-  background: #28a745;
-  margin-top: 15px;
-}
-
-.btn-danger {
-  background: #dc3545;
-}
-
-.btn-sm {
-  width: auto;
-  padding: 6px 10px;
-  font-size: 0.8rem;
-  display: inline-block;
-}
+.btn:active { transform: scale(0.98); }
+.btn-secondary { background: linear-gradient(145deg, #4a3a2f, #2a2019); border-color: #5c4a3d; }
+.btn-success { background: linear-gradient(145deg, #3a5a40, #223825); border-color: #4a7052; margin-top: 15px; }
+.btn-danger { background: linear-gradient(145deg, #8b3a3a, #5a2020); border-color: #a34949; }
+.btn-sm { width: auto; padding: 8px 12px; font-size: 1rem; display: inline-block; }
 
 #loading {
   display: none;
   text-align: center;
   margin: 20px 0;
-  color: #0066cc;
+  color: #d4af37;
   font-weight: bold;
+  font-size: 1.2rem;
 }
 
-.book-item {
-  background: #f1f5f9;
-  padding: 12px;
+/* ===================================================
+   📖 살아 숨쉬는 책장 애니메이션 (Interactive Bookshelf)
+   =================================================== */
+.bookshelf-menu {
+  display: flex;
+  gap: 6px;
+  height: 380px; /* 전체 책장 높이 */
+  align-items: flex-end; /* 책들이 바닥(선반)에 정렬됨 */
+  padding: 15px 10px;
+  margin-bottom: 25px;
+  background: #0f0a07; /* 깊은 책장 안쪽 */
+  border-bottom: 20px solid #2a1a10; /* 선반 판자 */
   border-radius: 8px;
-  margin-bottom: 10px;
-  border-left: 4px solid #0066cc;
+  box-shadow: 
+    inset 0 10px 20px rgba(0,0,0,0.9), /* 위쪽 깊은 그림자 */
+    0 10px 15px rgba(0,0,0,0.7); /* 선반 아래 그림자 */
   position: relative;
 }
 
-.book-title {
-  font-size: 1rem;
-  font-weight: bold;
-  margin: 2px 0;
-}
-
-.book-meta {
-  font-size: 0.85rem;
-  color: #64748b;
-  margin-bottom: 8px;
-}
-
-.action-btns {
+/* 책 공통 속성 */
+.menu-book {
+  flex: 1; /* 비활성 상태: 좁은 비율 */
+  height: 90%;
+  background: linear-gradient(135deg, #4a3121, #2a1a10);
+  border: 1px solid #1a1412;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: -4px 0 10px rgba(0,0,0,0.7);
+  transition: flex 0.6s cubic-bezier(0.25, 1, 0.5, 1), height 0.3s; /* 💡 부드러운 스르륵 애니메이션 */
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
+  justify-content: center;
+  align-items: center;
 }
 
-/* 🏠 메인 대시보드 그리드 */
-#mainDashboard {
-  max-width: 500px;
-  margin: 0 auto;
+/* 책마다 약간씩 높이를 다르게 하여 현실감 부여 */
+.menu-book:nth-child(2n) { height: 95%; background: linear-gradient(135deg, #3a2818, #1a0f08); }
+.menu-book:nth-child(3n) { height: 85%; background: linear-gradient(135deg, #5c3e2b, #2a1a10); }
+
+/* 활성화(선택)된 책 속성 */
+.menu-book.active {
+  flex: 5; /* 💡 펼쳐졌을 때 화면을 5배 더 차지함 */
+  height: 100%; /* 위로 살짝 솟아오름 */
+  border: 2px solid #5c4a3d;
+  border-left: 20px solid #140d0a; /* 두꺼운 책등(Spine) */
+  border-radius: 4px 16px 16px 4px;
+  box-shadow: -8px 0 20px rgba(0,0,0,0.9), 10px 15px 25px rgba(0,0,0,0.8);
+  background: linear-gradient(135deg, #4a3121, #2a1a10);
 }
 
-.main-menu-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-  margin-bottom: 20px;
+/* 1. 좁은 상태의 세로 글씨(Spine) */
+.book-spine {
+  writing-mode: vertical-rl; /* 세로 쓰기 */
+  transform: rotate(180deg); /* 위에서 아래로 읽히게 반전 */
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #d4af37; /* 금박 텍스트 */
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+  white-space: nowrap;
+  letter-spacing: 3px;
+  transition: opacity 0.3s ease;
 }
 
-.menu-card {
-  aspect-ratio: 1 / 1;
+/* 2. 펼쳐진 상태의 표지(Cover) 내용 */
+.book-cover {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #ffffff;
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 15px;
-  cursor: pointer;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  transition: all 0.25s ease-in-out;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease 0.3s; /* 💡 책이 펼쳐진 후 서서히 등장 */
+  padding: 10px 10px 10px 25px; /* 좌측 책등 피하기 */
   text-align: center;
 }
 
-.menu-card:hover {
-  transform: translateY(-4px);
-  border-color: #0066cc;
-  box-shadow: 0 10px 15px -3px rgba(0, 102, 204, 0.15);
-  background-color: #f8fafc;
-}
+/* 활성화 시 Spine은 사라지고 Cover가 나타남 */
+.menu-book.active .book-spine { opacity: 0; position: absolute; }
+.menu-book.active .book-cover { opacity: 1; pointer-events: auto; }
 
-.menu-card span:first-child {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 8px;
-}
-
-.menu-card .menu-desc {
-  font-size: 0.8rem;
-  color: #64748b;
-  line-height: 1.3;
-}
-
-/* 그룹 필터 박스 */
-.filter-box {
-  background: #edf2f7;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-}
-
-/* ===================================================
-   🖼️ 갤러리 2번 '레이어드 아코디언 스택 뷰' 전용 스타일
-   =================================================== */
-.gallery-room-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-.gallery-room-header h3 {
-  margin: 0 0 12px 0;
-  font-size: 1.15rem;
-  color: #0d6efd;
-}
-
-.gallery-shelf-wrapper {
-  background: #fdfdfe;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 12px;
-  margin-bottom: 15px;
-}
-
-.gallery-shelf-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.shelf-title-box h4 {
-  margin: 0;
-  font-size: 1rem;
-  color: #1e293b;
-}
-
-.shelf-stats-badge {
-  font-size: 0.75rem;
-  color: #64748b;
-  display: block;
-  margin-top: 2px;
-}
-
-/* 실제 책장 기둥 및 랙 컨테이너 */
-.shelf-board-rack {
-  border: 3px solid #8d6e63; /* 책장 외곽 프레임 색상 */
-  border-radius: 8px;
-  background: #fbf9f7;
-  overflow: hidden;
-}
-
-/* 아코디언 레이어 카드 */
-.accordion-layer-card {
-  background: #ffffff;
-  transition: background-color 0.2s ease;
-}
-
-.accordion-layer-card.is-expanded {
-  background: #fafafa;
-}
-
-.accordion-layer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.accordion-layer-header:hover {
-  background-color: #f1f5f9;
-}
-
-.layer-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.accordion-arrow {
-  font-size: 0.75rem;
-  color: #64748b;
-  width: 14px;
-}
-
-.layer-name {
-  font-size: 0.95rem;
-  color: #334155;
-}
-
-.layer-badge {
-  font-size: 0.75rem;
-  background: #e2e8f0;
-  color: #475569;
-  padding: 2px 7px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-.layer-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.layer-mini-thumb {
-  width: 44px;
-  height: 44px;
-  object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid #cbd5e1;
-}
-
-.no-photo-badge {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-.btn-delete-layer-tight {
-  padding: 4px 7px;
-  font-size: 0.75rem;
-}
-
-/* 아코디언 본문 */
-.accordion-layer-body {
-  padding: 12px;
-  border-top: 1px solid #f1f5f9;
-}
-
-/* 사진 가로 파노라마 트랙 (Multi-shot Sequence) */
-.photo-panorama-scroll {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  padding-bottom: 8px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.photo-slide-item {
-  flex: 0 0 85%; /* 모바일에서 1장이 화면의 85%를 차지하며 슬라이드 */
-  max-width: 320px;
-  scroll-snap-align: start;
-  position: relative;
-}
-
-.photo-shot-tag {
+/* 표지 금박 무늬 장식 */
+.menu-book.active::before {
+  content: '';
   position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.65);
-  color: #ffffff;
-  font-size: 0.75rem;
-  padding: 3px 7px;
-  border-radius: 4px;
-  font-weight: bold;
+  top: 15px; bottom: 15px; left: 35px; right: 15px;
+  border: 1px solid #d4af37;
+  outline: 1px solid rgba(212, 175, 55, 0.6);
+  outline-offset: -5px;
+  border-radius: 2px 8px 8px 2px;
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(212, 175, 55, 0.05) 10px, rgba(212, 175, 55, 0.05) 12px);
+  pointer-events: none;
 }
 
-.shelf-photo-view {
-  width: 100%;
-  height: 180px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  display: block;
-}
-
-.no-photo-alert {
-  font-size: 0.85rem;
-  color: #94a3b8;
-  text-align: center;
-  padding: 14px 0;
-}
-
-/* 도서 포지션 매핑 칩 영역 */
-.layer-books-mapping-box {
-  margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px dashed #cbd5e1;
-}
-
-.mapping-title {
-  font-size: 0.8rem;
+.book-cover span:first-child {
+  font-size: 1.8rem;
   font-weight: 700;
-  color: #475569;
-  margin-bottom: 8px;
+  color: #d4af37;
+  margin-bottom: 15px;
+  line-height: 1.2;
+  text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
 }
 
-.books-chip-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.book-cover .menu-desc {
+  font-size: 1.05rem;
+  color: #c1a88a;
+  line-height: 1.4;
 }
 
-.book-pos-chip {
-  display: flex;
-  align-items: center;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 0.82rem;
-  gap: 8px;
-}
+/* 기존 다른 뷰 스타일들 ... (갤러리 아코디언 등 유지) */
+.filter-box { background: #221a15; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #4a3a2f; }
+.gallery-room-card { background: #2a201a; border-radius: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid #4a3a2f; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5); }
+.gallery-room-header h3 { margin: 0 0 16px 0; font-size: 1.6rem; color: #d4af37; }
+.gallery-shelf-wrapper { background: #1e1713; border: 1px solid #3d2f26; border-radius: 10px; padding: 12px; margin-bottom: 15px; }
+.gallery-shelf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.shelf-title-box h4 { margin: 0; font-size: 1.3rem; color: #e8dcc4; }
+.shelf-stats-badge { font-size: 0.95rem; color: #a68153; display: block; margin-top: 4px; }
+.shelf-board-rack { border: 5px solid #140d0a; border-radius: 6px; background: #0f0a07; }
+.accordion-layer-card { background: #261d17; transition: background-color 0.2s ease; }
+.accordion-layer-card.is-expanded { background: #352820; }
+.accordion-layer-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; cursor: pointer; user-select: none; }
+.accordion-layer-header:hover { background-color: #3d2f26; }
+.layer-header-left { display: flex; align-items: center; gap: 10px; }
+.accordion-arrow { font-size: 0.95rem; color: #a68153; width: 14px; }
+.layer-name { font-size: 1.2rem; color: #d4af37; font-weight: bold; }
+.layer-badge { font-size: 0.9rem; background: #140d0a; color: #c1a88a; padding: 3px 8px; border-radius: 12px; border: 1px solid #4a3a2f; }
+.layer-header-right { display: flex; align-items: center; gap: 8px; }
+.layer-mini-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid #5c4a3d; }
+.accordion-layer-body { padding: 14px; border-top: 1px solid #1a1412; }
+.photo-panorama-scroll { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; }
+.photo-slide-item { flex: 0 0 90%; max-width: 320px; scroll-snap-align: start; position: relative; }
+.photo-shot-tag { position: absolute; top: 10px; left: 10px; background: rgba(20, 13, 10, 0.85); color: #d4af37; font-size: 0.9rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #5c4a3d; }
+.shelf-photo-view { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid #5c4a3d; }
+.shelf-plank-separator { height: 12px; background: linear-gradient(to bottom, #4a3121, #2a1a10); border-top: 2px solid #634531; border-bottom: 2px solid #0a0604; box-shadow: 0 3px 5px rgba(0,0,0,0.8); }
+.layer-books-mapping-box { margin-top: 16px; padding-top: 12px; border-top: 1px dashed #5c4a3d; }
+.mapping-title { font-size: 1.05rem; font-weight: bold; color: #d4af37; margin-bottom: 10px; }
+.books-chip-grid { display: flex; flex-direction: column; gap: 8px; }
+.book-pos-chip { display: flex; align-items: center; background: #1e1713; border: 1px solid #4a3a2f; padding: 10px; border-radius: 8px; font-size: 1.05rem; gap: 10px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
+.chip-pos { background: #8c6a41; color: #1e1510; padding: 3px 8px; border-radius: 4px; font-size: 0.9rem; font-weight: bold; white-space: nowrap; }
+.chip-title { font-weight: 700; color: #e8dcc4; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-author { color: #a68153; font-size: 0.95rem; white-space: nowrap; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
 
-.chip-pos {
-  background: #0284c7;
-  color: #ffffff;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.chip-title {
-  font-weight: 600;
-  color: #1e293b;
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chip-author {
-  color: #64748b;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  max-width: 90px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* 선반 판자 시각 구분선 */
-.shelf-plank-separator {
-  height: 6px;
-  background: #a1887f; /* 원목 선반 판자 색상 */
-  border-top: 1px solid #8d6e63;
-  border-bottom: 1px solid #6d4c41;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #1a1412; }
+::-webkit-scrollbar-thumb { background: #4a3a2f; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #614626; }
