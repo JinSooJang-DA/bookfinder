@@ -2,30 +2,58 @@
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GOOGLE_BOOKS_API_KEY = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY || '';
 
-function ensureBase64(input) {
-  if (typeof input === 'string') return Promise.resolve(input);
+// 1. 브라우저 캔버스를 이용한 이미지 리사이즈 (토큰 및 전송량 대폭 절감)
+function resizeImage(file, maxDimension = 1600) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(input);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (err) => reject(err);
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+      
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // base64 문자열 추출 (data:image/jpeg;base64, 접두사 제거 후 반환)
+      const base64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+      resolve(base64);
+    };
+    img.onerror = (err) => reject(err);
   });
 }
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Gemini AI 책장 이미지 분석
- * 503(서버 과부하) 및 429(속도 제한) 발생 시 최대 4회 자동 재시도 (2s -> 4s -> 8s)
+ * Gemini AI 책장 이미지 분석 (토큰 최적화 및 503 자동 재시도 적용)
  */
 export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retryCount = 0) {
-  const base64Data = await ensureBase64(imageInput);
-  const cleanBase64 = base64Data.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
+  let cleanBase64;
+  
+  // File 객체인 경우 리사이징 수행, 문자열인 경우 기존 처리
+  if (imageInput instanceof File || imageInput instanceof Blob) {
+    cleanBase64 = await resizeImage(imageInput);
+  } else if (typeof imageInput === 'string') {
+    cleanBase64 = imageInput.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
+  }
 
-  const prompt = `Analyze this bookshelf image and identify visible book titles and authors. Output in ${targetLang}. Return ONLY a JSON array: [{"title": "Title", "author": "Author"}]`;
+  // 간결한 단답형 프롬프트
+  const prompt = `Extract all visible book titles and authors from this image. Output in ${targetLang}. If author is not visible, return an empty string.`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    // 2. 모델 업데이트: gemini-3.8-flash 적용
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -35,15 +63,32 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
             { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
           ]
         }],
-        generationConfig: {
-          response_mime_type: "application/json"
+        config: {
+          // 3. 내부 추론 토큰 최소화 (REST API 형식)
+          thinking_config: {
+            thinking_level: "low"
+          },
+          response_mime_type: "application/json",
+          // 4. 순수 JSON 배열만 반환하도록 스키마 강제
+          response_schema: {
+            type: "ARRAY",
+            description: "List of identified books",
+            items: {
+              type: "OBJECT",
+              properties: {
+                title: { type: "STRING", description: "Title of the book" },
+                author: { type: "STRING", description: "Author name or empty string if not visible" }
+              },
+              required: ["title"]
+            }
+          },
+          temperature: 1.0
         }
       })
     });
 
-    // 503(서버 과부하), 429(Rate Limit), 500(내부 서버 에러) 발생 시 대기 후 재시도
     if ((response.status === 503 || response.status === 429 || response.status >= 500) && retryCount < 4) {
-      const waitTime = Math.pow(2, retryCount + 1) * 1000; // 2초 -> 4초 -> 8초 -> 16초
+      const waitTime = Math.pow(2, retryCount + 1) * 1000;
       console.warn(`[Gemini 서버 과부하 ${response.status}] ${waitTime / 1000}초 후 자동으로 다시 시도합니다... (${retryCount + 1}/4)`);
       await delay(waitTime);
       return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
@@ -52,22 +97,19 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
     const data = await response.json();
 
     if (!response.ok || data.error) {
-      // JSON 에러 응답 내부에 503 코드가 들어있는 경우 처리
       if ((data.error?.code === 503 || data.error?.status === 'UNAVAILABLE') && retryCount < 4) {
         const waitTime = Math.pow(2, retryCount + 1) * 1000;
         console.warn(`[Gemini Model Overloaded] ${waitTime / 1000}초 후 다시 시도합니다... (${retryCount + 1}/4)`);
         await delay(waitTime);
         return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
       }
-
-      console.error("Gemini API Error Detail:", data.error || data);
       throw new Error(data.error?.message || `HTTP ${response.status}`);
     }
 
-    let text = data.candidates[0].content.parts[0].text.trim();
-    text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-    
+    // response_schema 적용으로 마크다운 백틱 정규식 처리 없이 바로 객체 변환 가능
+    const text = data.candidates[0].content.parts[0].text;
     return JSON.parse(text);
+
   } catch (error) {
     if (retryCount < 4 && (error.message?.includes('503') || error.message?.includes('high demand') || error.message?.includes('UNAVAILABLE'))) {
       const waitTime = Math.pow(2, retryCount + 1) * 1000;
@@ -87,7 +129,7 @@ export async function fetchBookByISBN(isbn) {
   if (!cleanIsbn) return null;
 
   try {
-    let googleUrl = `[https://www.googleapis.com/books/v1/volumes?q=isbn:$](https://www.googleapis.com/books/v1/volumes?q=isbn:$){cleanIsbn}`;
+    let googleUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`;
     if (GOOGLE_BOOKS_API_KEY) {
       googleUrl += `&key=${GOOGLE_BOOKS_API_KEY}`;
     }
@@ -109,7 +151,7 @@ export async function fetchBookByISBN(isbn) {
   }
 
   try {
-    const olRes = await fetch(`[https://openlibrary.org/api/books?bibkeys=ISBN:$](https://openlibrary.org/api/books?bibkeys=ISBN:$){cleanIsbn}&format=json&jscmd=data`);
+    const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
     if (olRes.ok) {
       const olData = await olRes.json();
       const bookKey = `ISBN:${cleanIsbn}`;
@@ -137,7 +179,7 @@ async function fetchISBNFromOpenLibrary(title, author = '') {
     const cleanTitle = title.replace(/[[\]()]/g, '').trim();
     const cleanAuthor = author && author !== 'Unknown' ? author.replace(/[[\]()]/g, '').trim() : '';
     
-    let url = `[https://openlibrary.org/search.json?title=$](https://openlibrary.org/search.json?title=$){encodeURIComponent(cleanTitle)}`;
+    let url = `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}`;
     if (cleanAuthor) {
       url += `&author=${encodeURIComponent(cleanAuthor)}`;
     }
@@ -177,7 +219,7 @@ export async function fetchISBNByTitleAuthor(title, author = '', retryCount = 0)
     query += `+inauthor:${encodeURIComponent(cleanAuthor)}`;
   }
 
-  let googleUrl = `[https://www.googleapis.com/books/v1/volumes?q=$](https://www.googleapis.com/books/v1/volumes?q=$){query}&maxResults=3`;
+  let googleUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=3`;
   if (GOOGLE_BOOKS_API_KEY) {
     googleUrl += `&key=${GOOGLE_BOOKS_API_KEY}`;
   }
