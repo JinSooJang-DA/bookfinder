@@ -84,11 +84,14 @@
         </select>
         <input type="text" id="customLanguageInput" placeholder="Enter language e.g. Korean" style="display: none; margin-bottom: 10px;">
 
+        <!-- 💡 입력 시 기존 목록이 표시되도록 datalist 연동 -->
         <label for="roomInput" id="roomInputLabel">Room Name</label>
-        <input type="text" id="roomInput" value="Living Room">
+        <input type="text" id="roomInput" list="roomDataList" value="Living Room" autocomplete="off" placeholder="Select or type new room">
+        <datalist id="roomDataList"></datalist>
 
         <label for="shelfName" id="shelfNameLabel">Bookcase Name</label>
-        <input type="text" id="shelfName" value="Bookcase A">
+        <input type="text" id="shelfName" list="shelfDataList" value="Bookcase A" autocomplete="off" placeholder="Select or type new bookcase">
+        <datalist id="shelfDataList"></datalist>
 
         <div style="display: flex; gap: 10px;">
           <div style="flex: 1;">
@@ -106,7 +109,6 @@
           <input type="number" id="shotsPerLayer" min="1" max="5" value="1">
         </div>
 
-        <!-- 💡 capture="environment" 제거: 스마트폰에서 갤러리 업로드 또는 촬영 선택 가능 -->
         <input type="file" id="cameraInput" accept="image/*" style="display: none;">
         <button class="btn btn-secondary" id="btnPhoto" onclick="document.getElementById('cameraInput').click()" style="margin-top: 12px; width: 100%;">📸 Photograph Shelf Layer</button>
       </div>

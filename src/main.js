@@ -32,6 +32,12 @@ const uiLanguageSelect = document.getElementById('uiLanguageSelect');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const customLanguageInput = document.getElementById('customLanguageInput');
 
+// 💡 스캔 뷰 입력창 및 데이터리스트 요소
+const roomInput = document.getElementById('roomInput');
+const shelfNameInput = document.getElementById('shelfName');
+const roomDataList = document.getElementById('roomDataList');
+const shelfDataList = document.getElementById('shelfDataList');
+
 const cameraInput = document.getElementById('cameraInput');
 const btnPhoto = document.getElementById('btnPhoto');
 const loading = document.getElementById('loading');
@@ -69,6 +75,7 @@ let currentEditingBookId = null;
 let currentShotIndex = 0;
 let accumulatedBooks = [];
 let accumulatedFiles = [];
+let scanHierarchy = {}; // 스캔 뷰 자동완성 딕셔너리
 
 initBookListModule({
   getCurrentLang: () => currentLang,
@@ -77,6 +84,50 @@ initBookListModule({
 
 initGalleryModule();
 
+// 💡 스캔 뷰의 방/책장 자동완성 옵션 불러오기
+async function updateScanOptions() {
+  try {
+    const querySnapshot = await getDocs(collection(db, "books"));
+    scanHierarchy = {};
+    querySnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const room = data.room || 'Living Room';
+      const shelf = data.shelfName || 'Bookcase A';
+      if (!scanHierarchy[room]) scanHierarchy[room] = new Set();
+      scanHierarchy[room].add(shelf);
+    });
+
+    if (roomDataList) {
+      roomDataList.innerHTML = '';
+      Object.keys(scanHierarchy).forEach(room => {
+        const opt = document.createElement('option');
+        opt.value = room;
+        roomDataList.appendChild(opt);
+      });
+    }
+    updateScanShelfOptions();
+  } catch (error) {
+    console.error('Scan options error:', error);
+  }
+}
+
+// 방이 선택되거나 변경되었을 때 하위 책장 자동완성 갱신
+function updateScanShelfOptions() {
+  if (!shelfDataList || !roomInput) return;
+  const currentRoom = roomInput.value.trim();
+  shelfDataList.innerHTML = '';
+  const shelves = scanHierarchy[currentRoom] || new Set();
+  shelves.forEach(shelf => {
+    const opt = document.createElement('option');
+    opt.value = shelf;
+    shelfDataList.appendChild(opt);
+  });
+}
+
+// 방 이름 타이핑 시 이벤트 연결
+roomInput?.addEventListener('input', updateScanShelfOptions);
+roomInput?.addEventListener('change', updateScanShelfOptions);
+
 onAuthStateChanged(auth, (user) => {
   if (user) {
     if (authContainer) authContainer.style.display = 'none';
@@ -84,6 +135,7 @@ onAuthStateChanged(auth, (user) => {
     
     updateRoomDropdown();
     loadSavedBooks();
+    updateScanOptions(); // 로그인 시 자동완성 갱신
 
     initBarcodeModule({
       updateRoomDropdown,
@@ -156,12 +208,9 @@ window.switchView = (viewId) => {
     const targetView = document.getElementById(viewId);
     if (targetView) {
       targetView.style.display = 'block';
-      if (viewId === 'galleryView') {
-        loadGalleryHierarchy();
-      }
-      if (viewId === 'barcodeView') {
-        loadBarcodeHierarchyOptions();
-      }
+      if (viewId === 'galleryView') loadGalleryHierarchy();
+      if (viewId === 'barcodeView') loadBarcodeHierarchyOptions();
+      if (viewId === 'scanView') updateScanOptions(); // 💡 스캔 뷰 진입 시 자동완성 갱신
     }
   }
 
@@ -322,7 +371,6 @@ cameraInput?.addEventListener('change', async (event) => {
     });
   } catch (error) {
     console.error('Analysis Error:', error);
-    // 에러 발생 시 알림만 띄우고 파일 저장 프로세스는 멈추지 않음
     alert(tStr.analyzeFailedKeepPhoto || 'Analysis failed. The photo is kept and can be saved to the gallery.');
   }
 
@@ -333,7 +381,6 @@ cameraInput?.addEventListener('change', async (event) => {
     cameraInput.value = '';
   } else {
     renderScannedBooks(accumulatedBooks, resultCard, bookList);
-    // 만약 책이 0권이어도 사진이 있으면 저장할 수 있다는 안내 추가
     if (accumulatedBooks.length === 0) {
       resultCard.style.display = 'block';
       bookList.innerHTML = `<p style="text-align:center; color:#666; font-size:0.9rem; padding:10px;">${tStr.noBooksDetected || 'No books detected. You can still save the photo to the gallery.'}</p>`;
@@ -343,7 +390,6 @@ cameraInput?.addEventListener('change', async (event) => {
 
 saveBtn?.addEventListener('click', async () => {
   const t = i18n[currentLang] || i18n['en'];
-  // 책 배열도 비어있고, 사진 파일도 아무것도 없으면 리턴
   if (accumulatedBooks.length === 0 && accumulatedFiles.length === 0) return;
 
   const room = document.getElementById('roomInput')?.value.trim() || 'Living Room';
@@ -362,7 +408,6 @@ saveBtn?.addEventListener('click', async () => {
       }
     }
 
-    // 분석 실패/인식 불가로 책 정보가 0권이지만 사진이 있는 경우 미분석 가상 데이터 하나 생성
     let booksToSave = accumulatedBooks;
     if (booksToSave.length === 0 && imageUrls.length > 0) {
       booksToSave = [{
@@ -395,6 +440,7 @@ saveBtn?.addEventListener('click', async () => {
     resetShotSession();
     
     await updateRoomDropdown();
+    updateScanOptions(); // 저장 후 목록 갱신
     loadSavedBooks();
   } catch (error) {
     console.error('Save Error:', error);
@@ -474,6 +520,7 @@ saveEditBtn?.addEventListener('click', async () => {
     currentEditingBookId = null;
 
     await updateRoomDropdown();
+    updateScanOptions();
     loadSavedBooks();
   } catch (error) {
     console.error('Update Error:', error);
@@ -514,6 +561,7 @@ deleteGroupBtn?.addEventListener('click', async () => {
       alert(t.alertSuccessDelete);
       
       await updateRoomDropdown();
+      updateScanOptions();
       loadSavedBooks();
     } catch (error) {
       console.error('Group Delete Error:', error);

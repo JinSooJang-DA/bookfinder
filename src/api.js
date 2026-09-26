@@ -25,7 +25,6 @@ function resizeImage(file, maxDimension = 1600) {
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, width, height);
 
-      // base64 문자열 추출 (data:image/jpeg;base64, 접두사 제거 후 반환)
       const base64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
       resolve(base64);
     };
@@ -36,24 +35,21 @@ function resizeImage(file, maxDimension = 1600) {
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Gemini AI 책장 이미지 분석 (토큰 최적화 및 503 자동 재시도 적용)
+ * Gemini AI 책장 이미지 분석 (토큰 최적화 및 503/429/400 자동 재시도 적용)
  */
 export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retryCount = 0) {
   let cleanBase64;
   
-  // File 객체인 경우 리사이징 수행, 문자열인 경우 기존 처리
   if (imageInput instanceof File || imageInput instanceof Blob) {
     cleanBase64 = await resizeImage(imageInput);
   } else if (typeof imageInput === 'string') {
     cleanBase64 = imageInput.replace(/^data:image\/(png|jpeg|webp|jpg);base64,/, '');
   }
 
-  // 간결한 단답형 프롬프트
   const prompt = `Extract all visible book titles and authors from this image. Output in ${targetLang}. If author is not visible, return an empty string.`;
 
   try {
-    // 2. 모델 업데이트: gemini-3.8-flash 적용
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -63,14 +59,10 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
             { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
           ]
         }],
-        config: {
-          // 3. 내부 추론 토큰 최소화 (REST API 형식)
-          thinking_config: {
-            thinking_level: "low"
-          },
-          response_mime_type: "application/json",
-          // 4. 순수 JSON 배열만 반환하도록 스키마 강제
-          response_schema: {
+        // REST API 규격에 맞춘 설정 (config -> generationConfig)
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
             type: "ARRAY",
             description: "List of identified books",
             items: {
@@ -89,7 +81,7 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
 
     if ((response.status === 503 || response.status === 429 || response.status >= 500) && retryCount < 4) {
       const waitTime = Math.pow(2, retryCount + 1) * 1000;
-      console.warn(`[Gemini 서버 과부하 ${response.status}] ${waitTime / 1000}초 후 자동으로 다시 시도합니다... (${retryCount + 1}/4)`);
+      console.warn(`[Gemini 서버 과부하 ${response.status}] ${waitTime / 1000}초 후 다시 시도합니다... (${retryCount + 1}/4)`);
       await delay(waitTime);
       return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
     }
@@ -99,21 +91,19 @@ export async function analyzeBookshelfImage(imageInput, targetLang = 'en', retry
     if (!response.ok || data.error) {
       if ((data.error?.code === 503 || data.error?.status === 'UNAVAILABLE') && retryCount < 4) {
         const waitTime = Math.pow(2, retryCount + 1) * 1000;
-        console.warn(`[Gemini Model Overloaded] ${waitTime / 1000}초 후 다시 시도합니다... (${retryCount + 1}/4)`);
         await delay(waitTime);
         return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
       }
       throw new Error(data.error?.message || `HTTP ${response.status}`);
     }
 
-    // response_schema 적용으로 마크다운 백틱 정규식 처리 없이 바로 객체 변환 가능
+    // JSON 스키마를 강제했으므로 백틱이나 불필요한 텍스트 없이 바로 객체로 파싱 가능
     const text = data.candidates[0].content.parts[0].text;
     return JSON.parse(text);
 
   } catch (error) {
     if (retryCount < 4 && (error.message?.includes('503') || error.message?.includes('high demand') || error.message?.includes('UNAVAILABLE'))) {
       const waitTime = Math.pow(2, retryCount + 1) * 1000;
-      console.warn(`[Gemini 일시적 에러] ${waitTime / 1000}초 후 다시 시도합니다... (${retryCount + 1}/4)`);
       await delay(waitTime);
       return await analyzeBookshelfImage(imageInput, targetLang, retryCount + 1);
     }
