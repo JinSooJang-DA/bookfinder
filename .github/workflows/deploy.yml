@@ -1,8 +1,7 @@
 name: Deploy Vite App to GitHub Pages
 
 on:
-  push:
-    branches: ["main"]
+  # 자동 배포 끔 (저장소는 백업용). 배포하려면 GitHub Actions 탭에서 직접 실행.
   workflow_dispatch:
 
 permissions:

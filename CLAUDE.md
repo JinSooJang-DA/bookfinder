@@ -63,7 +63,7 @@ git diff --check
 ## 커밋, 푸시, 배포
 
 - **사용자 승인 없이 커밋·푸시·배포하지 않는다.**
-- `main`에 푸시하면 `.github/workflows/deploy.yml`이 **웹 앱을 GitHub Pages에 자동 배포**한다. 푸시는 곧 배포라는 점을 사용자에게 알리고 승인을 받는다.
+- GitHub 저장소는 비공개 백업용이다. 2026-10-29부터 `deploy.yml`은 자동 실행되지 않는다(Actions 탭에서 직접 실행할 때만 GitHub Pages 배포). Pages 사이트는 사용자가 Unpublish 했다.
 
 ## 다음 계획 (2026-10-29 사용자와 정함)
 
