@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { i18n } from './i18n.js';
-import { analyzeBookshelfImage, fetchBookByISBN } from './api.js';
+import { analyzeBookshelfImage, fetchBookByISBN, lastAnalysisTiming } from './api.js';
 import { renderScannedBooks } from './ui.js';
 import { saveImageToImgBB } from './storage.js';
 
@@ -493,6 +493,22 @@ totalLayersInput?.addEventListener('change', resetShotSession);
 shelfLayerSelect?.addEventListener('change', resetShotSession);
 shotsPerLayerInput?.addEventListener('change', resetShotSession);
 
+// 개발 중(npm run dev)에만: 마지막 분석의 단계별 시간을 화면에 보여준다 (휴대폰 테스트용).
+function showAnalysisTiming() {
+  if (!import.meta.env.DEV || !lastAnalysisTiming) return;
+  let box = document.getElementById('analysisTiming');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'analysisTiming';
+    box.style.cssText = 'margin:12px 0;padding:8px 10px;border:1px dashed #8c6b4a;border-radius:8px;font-size:13px;color:#c9a96e;white-space:pre-line;';
+    (resultCard?.parentNode || document.body).insertBefore(box, resultCard || null);
+  }
+  const t = lastAnalysisTiming;
+  const imgs = t.images.map(i => `사진 ${i.original} (${i.originalMB}MB) → 전송 ${i.sentKB}KB, 줄이기 ${i.resizeSec}s`).join('\n');
+  const tries = t.attempts.map(a => `${a.model}: ${a.status}, ${a.sec}s`).join('\n');
+  box.textContent = `⏱ 분석 시간 (개발용)\n${imgs}\n${tries}\n합계 ${t.totalSec ?? '?'}s`;
+}
+
 cameraInput?.addEventListener('change', async (event) => {
   const file = event.target.files[0];
   if (!file) return;
@@ -526,10 +542,14 @@ cameraInput?.addEventListener('change', async (event) => {
       if (!isDuplicate) accumulatedBooks.push(newBook);
     });
     accumulatedBooks.forEach((book, idx) => book.position = idx + 1);
-  } catch (error) { alert(tStr.analyzeFailedKeepPhoto || 'Analysis failed. The photo is kept.'); }
+  } catch (error) {
+    console.error('[BookFinder] analyze failed:', error);
+    alert((tStr.analyzeFailedKeepPhoto || 'Analysis failed. The photo is kept.') + '\n\n' + (error?.message || error));
+  }
 
   if (loading) loading.style.display = 'none';
-  
+  showAnalysisTiming();
+
   if (currentShotIndex < totalShots) {
     alert(`${tStr.shotProgress || 'Shot saved.'} (${currentShotIndex}/${totalShots})`);
     cameraInput.value = '';
