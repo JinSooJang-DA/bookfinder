@@ -1,5 +1,5 @@
 // src/api.js
-import { getAI, getGenerativeModel, VertexAIBackend, Schema } from 'firebase/ai';
+import { getAI, getGenerativeModel, VertexAIBackend, Schema, ThinkingLevel } from 'firebase/ai';
 import { app as firebaseApp } from './firebase.js';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 // 앞 모델이 붐비면 다음 모델로 넘어간다.
@@ -34,13 +34,13 @@ function isBusyError(status, message = '') {
 }
 
 // 모델 하나로 한 번 요청하고, 응답 JSON 텍스트를 돌려준다. 실패하면 err.busy(붐빔 여부)를 붙여 던진다.
-async function requestBookList(model, parts, requestBody) {
+async function requestBookList(model, parts, requestBody, schema = BOOK_LIST_SCHEMA, extraConfig = {}) {
   if (GEMINI_BACKEND === 'firebase') {
     try {
       if (!firebaseAI) firebaseAI = getAI(firebaseApp, { backend: new VertexAIBackend(VERTEX_LOCATION) });
       const generativeModel = getGenerativeModel(firebaseAI, {
         model,
-        generationConfig: { responseMimeType: 'application/json', responseSchema: BOOK_LIST_SCHEMA, temperature: 1.0 }
+        generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 1.0, ...extraConfig }
       });
       const result = await generativeModel.generateContent(parts);
       return { status: 200, text: result.response.text() };
@@ -283,5 +283,59 @@ export async function fetchISBNByTitleAuthor(title, author = '') {
     return await fetchISBNFromOpenLibrary(title, author);
   } catch (error) {
     return await fetchISBNFromOpenLibrary(title, author);
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// 영상 훑기 분석 (실험 단계, 2026-10-30)
+// 한 층을 영상으로 훑은 뒤 고른 장면(프레임)들을 한 번에 보내, 중복 없는 목록을 왼쪽→오른쪽 순서로 받는다.
+// 현재 Firebase AI Logic 백엔드에서만 동작한다.
+const SWEEP_SCHEMA = Schema.array({
+  items: Schema.object({
+    properties: {
+      title: Schema.string(),
+      author: Schema.string(),
+      kind: Schema.enumString({ enum: ['book', 'film', 'music', 'other'] }),
+      unsure: Schema.boolean()
+    },
+    optionalProperties: ['author']
+  })
+});
+
+export async function analyzeShelfSweep(frameBase64List, { direction = 'rtl', thinking = '' } = {}) {
+  const extraConfig = thinking && ThinkingLevel[thinking] ? { thinkingConfig: { thinkingLevel: ThinkingLevel[thinking] } } : {};
+  if (GEMINI_BACKEND !== 'firebase') throw new Error('Video-Analyse geht nur mit VITE_GEMINI_BACKEND=firebase.');
+  const n = frameBase64List.length;
+  const dirText = direction === 'rtl'
+    ? 'moving from the RIGHT end of the shelf to the LEFT end (frame 1 shows the right end)'
+    : 'moving from the LEFT end of the shelf to the RIGHT end (frame 1 shows the left end)';
+  const prompt = [
+    `These ${n} photos are consecutive frames from a video that sweeps along ONE shelf of a bookcase, ${dirText}.`,
+    'Neighbouring frames overlap heavily, so the same item appears in several frames. Count every item only once.',
+    'Return ONE list of all items standing or lying on THIS shelf, ordered from the LEFT end of the shelf to the RIGHT end.',
+    'Read title and author exactly as printed on the spine, in the original language. Do not translate.',
+    'kind: "book" for books, "film" for DVD/Blu-ray/video, "music" for CDs/records, "other" for other titled media.',
+    'Ignore toys, model cars, figures, photos, papers, decorations, boxes without a title, ring binders/file folders and stamp or photo albums.',
+    'Ignore items on the shelves above or below that are only partly visible at the top or bottom edge of the frames.',
+    'Do not guess or invent titles. If a spine is only partly readable, return the readable part and set unsure=true.'
+  ].join('\n');
+  const parts = [{ text: prompt }];
+  frameBase64List.forEach((data, i) => {
+    parts.push({ text: `Frame ${i + 1}` });
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data } });
+  });
+
+  for (let i = 0; i < GEMINI_MODELS.length; i++) {
+    const model = GEMINI_MODELS[i];
+    const startedAt = performance.now();
+    try {
+      const { text } = await requestBookList(model, parts, null, SWEEP_SCHEMA, extraConfig);
+      return { books: JSON.parse(text), model, seconds: (performance.now() - startedAt) / 1000 };
+    } catch (err) {
+      console.info(`[BookFinder Sweep] ${model}: failed (${err.status ?? '?'})`);
+      if (!err.busy || i === GEMINI_MODELS.length - 1) throw err;
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
   }
 }

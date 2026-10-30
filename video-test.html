@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BookFinder – Video-Test (nur Entwicklung)</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #17120d; color: #efe4cf; font-family: system-ui, sans-serif; }
+    main { max-width: 960px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+    h1 { margin: 0; color: #c9a96e; font-size: 24px; }
+    .card { border: 1px solid rgba(201,169,110,0.35); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #c7b598; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+    select, input[type=file], textarea { background: #0e0a07; color: #efe4cf; border: 1px solid rgba(201,169,110,0.4); border-radius: 8px; padding: 8px; font: inherit; }
+    textarea { min-height: 120px; }
+    button { min-height: 44px; padding: 0 18px; background: #c9a96e; color: #17120d; border: 0; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #status { white-space: pre-line; font-size: 14px; color: #e2c48d; }
+    #frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    #frames figure { margin: 0; font-size: 11px; color: #a8957a; }
+    #frames img { width: 100%; border-radius: 6px; display: block; }
+    #frames figure.blurry img { outline: 2px solid #c0504d; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid rgba(201,169,110,0.15); vertical-align: top; }
+    th { color: #c9a96e; }
+    .unsure { color: #e0a060; }
+    .miss { color: #e07a6f; }
+    .ok { color: #8fc28a; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Video-Test: ein Fach abfilmen</h1>
+    <p style="margin:0;font-size:13px;color:#a8957a">Nur für die Entwicklung. Video eines Fachs auswählen → scharfe Bilder werden ausgewählt → Gemini liest alle Titel → Vergleich mit einer Referenzliste.</p>
+
+    <section class="card">
+      <div class="row">
+        <label>Video
+          <input type="file" id="videoInput" accept="video/*" capture="environment" />
+        </label>
+        <label>Richtung im Video
+          <select id="direction">
+            <option value="rtl" selected>von rechts nach links</option>
+            <option value="ltr">von links nach rechts</option>
+          </select>
+        </label>
+        <label>Ein Bild alle
+          <select id="step">
+            <option value="0.75">0,75 s</option>
+            <option value="1" selected>1 s</option>
+            <option value="1.5">1,5 s</option>
+            <option value="2">2 s</option>
+          </select>
+        </label>
+        <label>Bildbreite
+          <select id="maxWidth">
+            <option value="1280">1280 px</option>
+            <option value="1920" selected>1920 px</option>
+            <option value="99999">Original</option>
+          </select>
+        </label>
+        <label>Denken (Gemini)
+          <select id="thinking">
+            <option value="" selected>Standard</option>
+            <option value="LOW">niedrig (schneller)</option>
+            <option value="MEDIUM">mittel</option>
+            <option value="HIGH">hoch</option>
+          </select>
+        </label>
+        <button type="button" id="runBtn" disabled>Analysieren</button>
+      </div>
+      <div id="status">Bitte ein Video auswählen.</div>
+    </section>
+
+    <section class="card">
+      <strong>Ausgewählte Bilder</strong>
+      <div id="frames"></div>
+    </section>
+
+    <section class="card">
+      <strong>Ergebnis</strong>
+      <div id="summary" style="font-size:14px"></div>
+      <table>
+        <thead><tr><th>#</th><th>Titel</th><th>Autor</th><th>Art</th><th>Referenz?</th></tr></thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <label>Referenzliste (ein Titel pro Zeile, links → rechts) – vorausgefüllt: Arbeitszimmer › Regal 1 › Fach 1, von Hand gelesen
+        <textarea id="reference"></textarea>
+      </label>
+      <div id="missing" style="font-size:13px"></div>
+    </section>
+  </main>
+  <script type="module" src="./src/video-test.js"></script>
+</body>
+</html>
