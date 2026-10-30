@@ -71,6 +71,7 @@ git diff --check
 - `places/{id}` {name, order, icon, hasPlan} · `rooms/{id}` {placeId, name, order, hasBooks, plan{x,y,w,h} 미터} · `bookcases/{id}` {placeId, roomId, name, order, widthM, heightM, plan, sections[{layers}], note?, baseCabinet?}. Fach 1 = 맨 위.
 - 개발용 화면 `dev-tools.html`(처음 데이터 넣기, 도면·표 확인). 처음 데이터 22개(장소 2, 방 11, 책장 9) 생성 완료.
 - 영상 실험 화면 `video-test.html`. 서재 1 Fach 1: 느린 영상(20.7초) 69/70·84항목·Gemini 41초. 1.7배 빠른 영상(12.1초): 0.75초 간격 16장 64/70·Gemini 47초, **0.5초 간격 24장 68/70·82항목·Gemini 82초**(지어낸 항목 없음, 참고 목록 밖 항목은 실제 책).
+- **실제 앱 첫 결과 (2026-10-30, 휴대폰 https):** Erfassen에서 녹화 중 0.5초마다 선명한 장면 수집(`src/live-sweep.js`) → `analyzeShelfSweep` → 확인 화면. Arbeitszimmer Regal 1 Fach 1 = **78권**. 분석 약 90초. 두 번째 층을 이어서 찍어도 **동시에 분석**되어 약 95초에 둘 다 끝남(기다림 거의 없음). 저장은 아직 메모리.
 - **촬영 방향:** 휴대폰 **가로**(사용자 실제 촬영 방식, 68/70 검증). 실제 카메라 연결 시: 세로로 들면 "Bitte Handy quer drehen" 안내를 띄우고 가로일 때만 촬영 버튼 표시, 카메라 화면 위에 위·아래 선반 가이드 선.
 - **촬영 방식 결정 (2026-10-30):** 층별 가로 영상, 빠르게(약 12초/2.5m) 훑어도 됨, 장면 간격 0.5초, thinking 기본값(niedrig는 효과 없음). 분석은 뒤에서 돌리고 다음 층 촬영(여러 층 동시 분석 가능). 개선 후보: 장면을 2~3묶음으로 나눠 병렬 분석 후 합치기.
 
