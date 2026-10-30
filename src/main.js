@@ -14,7 +14,7 @@ import { saveImageToImgBB } from './storage.js';
 import { initBarcodeModule, loadBarcodeHierarchyOptions, stopScanner } from './barcode.js';
 import { initBookListModule, updateRoomDropdown, loadSavedBooks } from './booklist.js';
 import { initGalleryModule, loadGalleryHierarchy } from './gallery.js';
-import { openLibraryView, openCaptureView } from './library-view.js';
+import { openLibraryView, openCaptureView, stopCamera } from './library-view.js';
 import { openSettingsView } from './settings-view.js';
 
 const authContainer = document.getElementById('authContainer');
@@ -294,6 +294,7 @@ window.switchView = (viewId) => {
   const navBackBar = document.getElementById('navBackBar');
   const subViews = document.querySelectorAll('.sub-view');
   stopScanner();
+  stopCamera();
   subViews.forEach(v => v.style.display = 'none');
 
   if (viewId === 'mainDashboard') {

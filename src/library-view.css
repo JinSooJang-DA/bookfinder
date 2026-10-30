@@ -241,3 +241,49 @@
 .lib-book.is-moved { border-color: rgba(143,194,138,0.5); }
 .lib-moved { margin-left: auto; font-size: 0.7rem; color: #8fc28a; white-space: nowrap; }
 .lib-kind-new { background: #f0d27a; }
+
+/* ---- Filmen: Kamera-Bühne (Hochformat: im Fluss · Querformat: Vollbild, Bedienung rechts) ---- */
+.lib-rotate { margin: 0; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(143,194,138,0.12); color: #e8f3e6; font-size: 0.95rem; }
+.lib-stage { display: flex; flex-direction: column; gap: 12px; }
+.lib-stage-ctrl { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.lib-cam-title { position: absolute; left: 8px; top: 8px; font-size: 0.8rem; color: #e8f3e6; background: rgba(0,0,0,0.5); padding: 1px 6px; border-radius: 6px; }
+.lib-cam-rec { top: auto; bottom: 8px; }
+.lib-shutter {
+  width: 72px; height: 72px; flex: 0 0 72px; border-radius: 50%; border: 4px solid #f3ead8; background: transparent;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+}
+.lib-shutter span { width: 54px; height: 54px; border-radius: 50%; background: #d9534f; transition: all 0.15s; }
+.lib-shutter.is-stop span { width: 28px; height: 28px; border-radius: 6px; }
+.lib-shutter-label { font-size: 0.75rem; color: #c1a88a; }
+.lib-stage-close { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.4); color: #f3ead8; border: 1px solid rgba(243,234,216,0.4); cursor: pointer; display: none; }
+.lib-dir-stage { flex: 0 0 auto; }
+.lib-dir-stage .lib-dir-btn { min-width: 52px; font-size: 1.1rem; }
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .lib-rotate, .lib-tips { display: none; }
+  .lib-stage {
+    position: fixed; inset: 0; z-index: 60; flex-direction: row; gap: 0; background: #000;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .lib-stage .lib-cam { flex: 1 1 auto; height: 100%; aspect-ratio: auto; border-radius: 0; border-width: 0; }
+  .lib-stage .lib-cam.is-rec { box-shadow: inset 0 0 0 3px #d9534f; }
+  .lib-stage-ctrl { flex: 0 0 104px; flex-direction: column; justify-content: space-between; padding: 12px 0; background: rgba(0,0,0,0.85); }
+  .lib-stage-close { display: block; }
+  .lib-dir-stage { flex-direction: column; gap: 6px; }
+  .lib-dir-stage .lib-dir-btn { min-height: 40px; }
+}
+
+/* ---- Live-Kamerabild ---- */
+.lib-cam-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: transparent; }
+.lib-cam-line, .lib-cam-arrow, .lib-cam-title, .lib-cam-note, .lib-cam-rec { z-index: 1; }
+.lib-cam-line { border-top-color: #b7f0b0; filter: drop-shadow(0 0 2px rgba(0,0,0,0.9)); }
+.lib-cam-arrow { color: #e8f3e6; filter: drop-shadow(0 0 3px rgba(0,0,0,0.9)); }
+.lib-cam-note { color: #e8dcc4; background: rgba(0,0,0,0.5); padding: 1px 6px; border-radius: 6px; }
+
+/* ---- Aufnahme: Warnung & Fehler ---- */
+.lib-cam-warn {
+  position: absolute; left: 50%; top: 22%; transform: translateX(-50%); z-index: 2;
+  background: #d9534f; color: #fff; font-weight: 700; font-size: 1.2rem; padding: 6px 14px; border-radius: 10px;
+}
+.lib-cam-warn[hidden] { display: none; }
+.lib-fach-cap.is-error .lib-status { color: #e07a6f; }

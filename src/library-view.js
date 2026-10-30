@@ -5,6 +5,8 @@
 // Stand 2026-10-30: Filmen, Analyse und Speichern sind nur eine VORSCHAU (keine Kamera, keine Gemini-Anfrage,
 // kein Firestore-Schreiben). Sie werden nach Fertigstellung der Oberfläche angeschlossen.
 import { loadLibrary, totalLayers } from './library.js';
+import { analyzeShelfSweep } from './api.js';
+import { startSweepCapture } from './live-sweep.js';
 
 let lib = null;
 let loading = null;
@@ -23,17 +25,6 @@ const views = {
 // { status: 'analysing' | 'review' | 'saved', items: [...] }
 const fachStatus = {};
 
-// Beispieldaten für die Prüfen-Vorschau (echte Titel aus dem Testvideo Arbeitszimmer › Regal 1 › Fach 1)
-const PREVIEW_ITEMS = [
-  { title: 'James Bidgood', author: '', kind: 'book', unsure: false },
-  { title: 'Das Tagebuch der Anne Frank', author: 'Ari Folman, David Polonsky', kind: 'book', unsure: false },
-  { title: 'Habt ihr wieder nur altes kaputtes Zeug gefunden?', author: 'Fischer', kind: 'book', unsure: false },
-  { title: 'Mies – Ein visionärer Architekt', author: '', kind: 'book', unsure: false },
-  { title: 'Islam und Homosexualität, Teil 3', author: 'Amin K. Walter', kind: 'book', unsure: false },
-  { title: 'Götter & Kulte', author: '', kind: 'book', unsure: true },
-  { title: '2000 Jahre Varusschlacht – Konflikt', author: '', kind: 'book', unsure: false },
-  { title: 'Parthenon', author: '', kind: 'book', unsure: false }
-];
 const KIND_LABEL = { book: 'Buch', film: 'Film', music: 'Musik', other: 'Sonstiges' };
 
 // Gespeicherte Fächer (Vorschau, nur im Speicher): key → [{ title, author, kind }], von links nach rechts.
@@ -64,6 +55,43 @@ shelfBooks['arbeitszimmer-1:0:1'] = SAMPLE_FACH;
 fachStatus['arbeitszimmer-1:0:1'] = { status: 'saved', items: SAMPLE_FACH };
 
 const SPINE_COLORS = ['#4f5e45', '#6e3428', '#2c445b', '#7d5f28', '#5c5852', '#463756', '#7a4e33', '#3a5853'];
+
+// ---------------------------------------------------------------- Kamera (Live-Vorschau im Filmen-Bildschirm)
+// Braucht einen sicheren Kontext (https oder localhost). Auf dem Handy: npm run dev:phone.
+let camStream = null;
+let camStarting = null;
+
+async function ensureCamera(rootId) {
+  const video = document.querySelector(`#${rootId} .lib-cam-video`);
+  const note = document.getElementById(`${rootId}-cam-note`);
+  if (!video) { stopCamera(); return; }
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    if (note) note.textContent = 'Kamera nur über https (npm run dev:phone)';
+    return;
+  }
+  try {
+    if (!camStream) {
+      camStarting = camStarting || navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      camStream = await camStarting;
+    }
+    video.srcObject = camStream;
+    await video.play().catch(() => {});
+    if (note) note.textContent = '';
+  } catch (err) {
+    camStream = null;
+    if (note) note.textContent = 'Kamera nicht verfügbar: ' + (err?.message || err);
+  } finally {
+    camStarting = null;
+  }
+}
+
+export function stopCamera() {
+  camStream?.getTracks().forEach(t => t.stop());
+  camStream = null;
+}
 
 // Nach Änderungen in den Einstellungen neu aus Firestore laden
 export function invalidateLibrary() { lib = null; loading = null; }
@@ -227,35 +255,61 @@ function goBack(st) {
   else st.screen = 'start';
 }
 
-// ---------------------------------------------------------------- Vorschau: Aufnahme & Analyse
-let recTimer = null;
+// ---------------------------------------------------------------- Aufnahme & Analyse
+// Während der Aufnahme werden scharfe Bilder gesammelt (src/live-sweep.js), danach im Hintergrund
+// mit Gemini ausgewertet (analyzeShelfSweep). Man kann währenddessen das nächste Fach filmen.
+let sweep = null;
+
 function startRecording(rootId) {
   const st = views[rootId].state;
+  const video = document.querySelector(`#${rootId} .lib-cam-video`);
+  if (!camStream || !video || video.readyState < 2) {
+    toast(rootId, 'Kamera ist nicht bereit. Über https öffnen (npm run dev:phone) und die Kamera erlauben.');
+    return;
+  }
   st.recording = true;
-  st.recStart = Date.now();
   render(rootId);
-  clearInterval(recTimer);
-  recTimer = setInterval(() => {
-    const t = document.getElementById(`${rootId}-rec-time`);
-    if (!t || !views[rootId].state.recording) { clearInterval(recTimer); return; }
-    t.textContent = `${Math.floor((Date.now() - st.recStart) / 1000)} s`;
-  }, 250);
+  const v2 = document.querySelector(`#${rootId} .lib-cam-video`);
+  sweep = startSweepCapture(v2, { windowSec: 0.5, onState: (s) => updateRecUi(rootId, s) });
 }
 
-function stopRecording(rootId) {
-  clearInterval(recTimer);
+function updateRecUi(rootId, s) {
+  const t = document.getElementById(`${rootId}-rec-time`);
+  if (t) t.textContent = `${Math.floor(s.seconds)} s · ${s.frames} Bilder`;
+  const w = document.getElementById(`${rootId}-rec-warn`);
+  if (w) w.hidden = !s.blurry;
+}
+
+async function stopRecording(rootId) {
   const st = views[rootId].state;
   const k = key(st.bookcaseId, st.section, st.fach);
-  fachStatus[k] = { status: 'analysing', items: [] };
   const fach = st.fach;
+  const direction = st.direction;
+  const run = sweep;
+  sweep = null;
+  fachStatus[k] = { status: 'analysing', items: [] };
   Object.assign(st, { recording: false, screen: 'case' });
   render(rootId);
-  toast(rootId, `Fach ${fach} wird analysiert. Du kannst schon das nächste Fach filmen.`);
-  setTimeout(() => {
-    if (fachStatus[k]?.status !== 'analysing') return;
-    fachStatus[k] = { status: 'review', items: PREVIEW_ITEMS.map(x => ({ ...x })) };
-    if (views[rootId].state.screen === 'case') render(rootId);
-  }, 4000);
+  const refresh = () => { if (views[rootId].state.screen === 'case') render(rootId); };
+  try {
+    const rec = await run.stop();
+    if (rec.frames.length < 2) {
+      fachStatus[k] = { status: 'error', items: [], msg: 'Aufnahme zu kurz' };
+      refresh();
+      return;
+    }
+    toast(rootId, `Fach ${fach}: ${rec.frames.length} Bilder werden analysiert. Du kannst schon das nächste Fach filmen.`);
+    const { books, model, seconds } = await analyzeShelfSweep(rec.frames, { direction });
+    fachStatus[k] = {
+      status: 'review',
+      items: books.map(b => ({ title: b.title || '', author: b.author || '', kind: b.kind || 'book', unsure: !!b.unsure })),
+      meta: { frames: rec.frames.length, rec: Math.round(rec.seconds), model, seconds: Math.round(seconds), size: rec.size }
+    };
+  } catch (err) {
+    console.error('[BookFinder Erfassen]', err);
+    fachStatus[k] = { status: 'error', items: [], msg: err?.message || String(err) };
+  }
+  refresh();
 }
 
 function toast(rootId, text) {
@@ -333,6 +387,7 @@ function render(rootId) {
   if (st.book) html += renderBookSheet(st);
   if (st.screen === 'addbook') setTimeout(() => document.getElementById(`${rootId}-title`)?.focus(), 0);
   el.innerHTML = `<div class="card lib-card${cap ? ' mode-capture' : ''}">${html}</div>`;
+  if (cap) { if (st.screen === 'film') ensureCamera(rootId); else stopCamera(); }
   if (st.screen === 'search' && !st.book) document.getElementById(`${rootId}-q`)?.focus();
   el.querySelector('.is-hl-book')?.scrollIntoView({ block: 'center' });
 }
@@ -533,7 +588,8 @@ const STATUS = {
   none: { label: 'Noch nicht erfasst', cls: '', action: 'Filmen' },
   analysing: { label: 'Wird analysiert …', cls: 'is-busy', action: '' },
   review: { label: 'Bitte prüfen', cls: 'is-review', action: 'Prüfen' },
-  saved: { label: 'Gespeichert', cls: 'is-saved', action: 'Neu filmen' }
+  saved: { label: 'Gespeichert', cls: 'is-saved', action: 'Neu filmen' },
+  error: { label: 'Fehler', cls: 'is-error', action: 'Neu filmen' }
 };
 
 function renderCaptureCase(st) {
@@ -544,7 +600,8 @@ function renderCaptureCase(st) {
   const rows = list.map(({ sec, fach }) => {
     const s = fachStatus[key(b.id, sec, fach)];
     const S = STATUS[s?.status || 'none'];
-    const count = s?.status === 'review' || s?.status === 'saved' ? ` · ${s.items.length} Einträge` : '';
+    const count = s?.status === 'review' || s?.status === 'saved' ? ` · ${s.items.length} Einträge`
+      : (s?.status === 'error' ? ` · ${esc(String(s.msg).slice(0, 60))}` : '');
     const btn = S.action ? `<button type="button" class="lib-film" data-act="fach" data-id="${sec}:${fach}">${S.action}</button>` : '<span class="lib-spinner" aria-hidden="true"></span>';
     return `<div class="lib-fach lib-fach-cap ${S.cls}"><span class="lib-fach-label">${esc(fachName(b, sec, fach))}${fach === 1 ? ' (oben)' : ''}</span><span class="lib-status">${S.label}${count}</span>${btn}</div>`;
   }).join('');
@@ -560,26 +617,39 @@ function renderFilm(st, rootId) {
   const arrow = rtl
     ? '<path d="M44 12 H6 M14 4 L6 12 L14 20"></path>'
     : '<path d="M4 12 H42 M34 4 L42 12 L34 20"></path>';
-  return header(st, `${fachName(b, st.section, st.fach)} filmen`, `${b.name} · ${room(st)?.name || ''}`) + `
-    <div class="lib-cam${st.recording ? ' is-rec' : ''}">
-      <div class="lib-cam-line lib-cam-top"><span>oberes Brett</span></div>
-      <div class="lib-cam-line lib-cam-bottom"><span>unteres Brett</span></div>
-      <svg class="lib-cam-arrow" width="48" height="24" viewBox="0 0 48 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${arrow}</svg>
-      ${st.recording ? `<span class="lib-cam-rec"><span class="lib-rec-dot"></span><span id="${rootId}-rec-time">0 s</span></span>` : '<span class="lib-cam-note">Vorschau – Kamera folgt</span>'}
-    </div>
+  const title = `${fachName(b, st.section, st.fach)} filmen`;
+  // Querformat: .lib-stage wird per CSS zum Vollbild, Bedienelemente rechts (wie eine Kamera-App)
+  return header(st, title, `${b.name} · ${room(st)?.name || ''}`) + `
+    <p class="lib-rotate">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"></rect><path d="M2 14a8 8 0 0 0 6 6M5 20l3 0 0-3"></path></svg>
+      Zum Filmen Handy <b>quer</b> drehen
+    </p>
     <ul class="lib-tips">
-      <li>Handy <b>quer</b> halten.</li>
       <li>Abstand so wählen, dass oberes und unteres Brett an den Linien liegen.</li>
       <li>Zügig und gleichmäßig ${rtl ? '<b>von rechts nach links</b>' : '<b>von links nach rechts</b>'} am Fach entlang.</li>
       <li>Licht einschalten – dann werden die Bilder schärfer.</li>
     </ul>
-    <div class="lib-dir" role="group" aria-label="Richtung">
-      <button type="button" class="lib-dir-btn${rtl ? ' is-on' : ''}" data-act="dir" data-id="rtl" aria-pressed="${rtl}">← von rechts</button>
-      <button type="button" class="lib-dir-btn${rtl ? '' : ' is-on'}" data-act="dir" data-id="ltr" aria-pressed="${!rtl}">von links →</button>
-    </div>
-    ${st.recording
-      ? '<button type="button" class="btn lib-rec-btn is-stop" data-act="rec-stop">Aufnahme beenden</button>'
-      : '<button type="button" class="btn lib-rec-btn" data-act="rec-start">Aufnahme starten</button>'}`;
+    <div class="lib-stage${st.recording ? ' is-rec' : ''}">
+      <div class="lib-cam${st.recording ? ' is-rec' : ''}">
+        <video class="lib-cam-video" autoplay muted playsinline aria-label="Kamerabild"></video>
+        <div class="lib-cam-line lib-cam-top"><span>oberes Brett</span></div>
+        <div class="lib-cam-line lib-cam-bottom"><span>unteres Brett</span></div>
+        <svg class="lib-cam-arrow" width="48" height="24" viewBox="0 0 48 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${arrow}</svg>
+        <span class="lib-cam-title">${esc(title)}</span>
+        ${st.recording ? `<span class="lib-cam-rec"><span class="lib-rec-dot"></span><span id="${rootId}-rec-time">0 s</span></span><span class="lib-cam-warn" id="${rootId}-rec-warn" hidden>Langsamer!</span>` : `<span class="lib-cam-note" id="${rootId}-cam-note">Kamera wird gestartet …</span>`}
+      </div>
+      <div class="lib-stage-ctrl">
+        <button type="button" class="lib-stage-close" data-act="back" aria-label="Schließen">✕</button>
+        ${st.recording
+          ? '<button type="button" class="lib-shutter is-stop" data-act="rec-stop" aria-label="Aufnahme beenden"><span></span></button>'
+          : '<button type="button" class="lib-shutter" data-act="rec-start" aria-label="Aufnahme starten"><span></span></button>'}
+        <div class="lib-dir lib-dir-stage" role="group" aria-label="Richtung">
+          <button type="button" class="lib-dir-btn${rtl ? ' is-on' : ''}" data-act="dir" data-id="rtl" aria-pressed="${rtl}" aria-label="von rechts nach links" ${st.recording ? 'disabled' : ''}>←</button>
+          <button type="button" class="lib-dir-btn${rtl ? '' : ' is-on'}" data-act="dir" data-id="ltr" aria-pressed="${!rtl}" aria-label="von links nach rechts" ${st.recording ? 'disabled' : ''}>→</button>
+        </div>
+        <span class="lib-shutter-label">${st.recording ? 'Stopp' : 'Start'}</span>
+      </div>
+    </div>`;
 }
 
 function renderReview(st) {
@@ -599,7 +669,7 @@ function renderReview(st) {
       <button type="button" class="lib-del" data-act="del" data-id="${i}" aria-label="Eintrag ${i + 1} entfernen">✕</button>
     </div>`).join('');
   return header(st, `${fachName(b, st.section, st.fach)} prüfen`, `${b.name} · ${room(st)?.name || ''}`) + `
-    <p class="lib-info">${s.items.length} Einträge · ${unsure} unsicher · von links nach rechts · <i>Beispieldaten (Vorschau)</i></p>
+    <p class="lib-info">${s.items.length} Einträge · ${unsure} unsicher · von links nach rechts · ${s.meta ? `${s.meta.frames} Bilder · ${s.meta.rec} s Aufnahme · Gemini ${s.meta.seconds} s` : ''}</p>
     <div class="lib-items">${rows}</div>
     <div class="lib-actions">
       <button type="button" class="btn btn-secondary" data-act="discard">Verwerfen</button>
