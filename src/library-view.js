@@ -6,7 +6,7 @@
 // (analyzeShelfSweep) und Speichern in Firestore (books v: 2, saveFach / insertBook) sind angeschlossen.
 import { loadLibrary, totalLayers, loadShelfBooks, saveFach, insertBook } from './library.js';
 import { analyzeShelfSweep } from './api.js';
-import { startSweepCapture } from './live-sweep.js';
+import { startSweepCapture, captureSharpPhoto } from './live-sweep.js';
 
 let lib = null;
 let loading = null;
@@ -114,7 +114,7 @@ export function openCaptureView() { return openView('captureView'); }
 
 async function openView(rootId, { reset = true } = {}) {
   const v = views[rootId];
-  if (reset) v.state = { screen: 'start', placeId: null, roomId: null, bookcaseId: null, section: 0, fach: null, direction: 'rtl', recording: false, query: '', book: null, hl: null, adding: null, draft: { title: '', author: '', kind: 'book' }, lastInsert: null, formMsg: '' };
+  if (reset) v.state = { screen: 'start', placeId: null, roomId: null, bookcaseId: null, section: 0, fach: null, direction: 'rtl', recording: false, capMode: 'video', photoCount: 3, photos: [], shooting: false, query: '', book: null, hl: null, adding: null, draft: { title: '', author: '', kind: 'book' }, lastInsert: null, formMsg: '' };
   const el = document.getElementById(rootId);
   if (!el) return;
   if (!el.dataset.bound) {
@@ -195,16 +195,21 @@ function onClick(rootId, e) {
     case 'fach': {
       const [sec, fach] = id.split(':').map(Number);
       const s = fachStatus[key(st.bookcaseId, sec, fach)];
-      Object.assign(st, { section: sec, fach, screen: s?.status === 'review' ? 'review' : 'film', recording: false });
+      Object.assign(st, { section: sec, fach, screen: s?.status === 'review' ? 'review' : 'how', recording: false, photos: [] });
       break;
     }
     case 'next': {
       const next = nextOpenFach(st.bookcaseId);
       if (!next) return;
-      Object.assign(st, { section: next.sec, fach: next.fach, screen: 'film', recording: false });
+      Object.assign(st, { section: next.sec, fach: next.fach, screen: 'how', recording: false, photos: [] });
       break;
     }
     case 'dir': st.direction = id; break;
+    case 'how-mode': st.capMode = id; break;
+    case 'count': st.photoCount = Math.min(10, Math.max(1, st.photoCount + Number(id))); break;
+    case 'how-go': Object.assign(st, { screen: 'film', recording: false, photos: [] }); break;
+    case 'shot': takePhoto(rootId); return;
+    case 'photo-undo': st.photos.pop(); break;
     case 'torch': toggleTorch(rootId); return;
     case 'rec-start': startRecording(rootId); return;
     case 'rec-stop': stopRecording(rootId); return;
@@ -255,7 +260,8 @@ function goBack(st) {
   if (st.screen === 'insert') { st.screen = 'case'; return; }
   if (st.screen === 'places' && st.adding) { st.screen = 'addbook'; return; }
   if (st.screen === 'fach') { st.screen = 'case'; return; }
-  if (st.screen === 'film' || st.screen === 'review') { st.recording = false; st.screen = 'case'; }
+  if (st.screen === 'film') { Object.assign(st, { recording: false, photos: [], screen: 'how' }); return; }
+  if (st.screen === 'how' || st.screen === 'review') { st.recording = false; st.screen = 'case'; }
   else if (st.screen === 'case') Object.assign(st, { screen: 'room', bookcaseId: null });
   else if (st.screen === 'room') Object.assign(st, { screen: 'place', roomId: null });
   else if (st.screen === 'place') Object.assign(st, { screen: 'places', placeId: null });
@@ -289,28 +295,62 @@ function updateRecUi(rootId, s) {
 
 async function stopRecording(rootId) {
   const st = views[rootId].state;
+  const run = sweep;
+  sweep = null;
+  await analyzeInBackground(rootId, 'video', async () => {
+    const rec = await run.stop();
+    if (rec.frames.length < 2) throw new Error('Aufnahme zu kurz');
+    return { frames: rec.frames, meta: { rec: Math.round(rec.seconds), size: rec.size } };
+  });
+}
+
+// Foto-Modus: jedes Tippen = ein Foto (schärfstes von einigen Bildern). Nach dem letzten Foto startet die Analyse sofort.
+async function takePhoto(rootId) {
+  const st = views[rootId].state;
+  const video = document.querySelector(`#${rootId} .lib-cam-video`);
+  if (st.shooting) return;
+  if (!camStream || !video || video.readyState < 2) {
+    toast(rootId, 'Kamera ist nicht bereit. Über https öffnen (npm run dev:phone) und die Kamera erlauben.');
+    return;
+  }
+  st.shooting = true;
+  document.querySelector(`#${rootId} .lib-cam`)?.classList.add('is-flash');
+  try {
+    const photo = await captureSharpPhoto(video);
+    st.photos.push(photo);
+  } catch (err) {
+    console.error('[BookFinder Foto]', err);
+    toast(rootId, 'Foto fehlgeschlagen: ' + (err?.message || err));
+  } finally {
+    st.shooting = false;
+  }
+  if (st.photos.length >= st.photoCount) {
+    const photos = st.photos;
+    st.photos = [];
+    await analyzeInBackground(rootId, 'photos', async () => ({ frames: photos, meta: {} }));
+  } else if (views[rootId].state.screen === 'film') {
+    render(rootId);
+  }
+}
+
+// Gemeinsam für Video und Fotos: Fach als "wird analysiert" markieren, zurück zur Regal-Übersicht, im Hintergrund auswerten
+async function analyzeInBackground(rootId, source, getFrames) {
+  const st = views[rootId].state;
   const k = key(st.bookcaseId, st.section, st.fach);
   const fach = st.fach;
   const direction = st.direction;
-  const run = sweep;
-  sweep = null;
   fachStatus[k] = { status: 'analysing', items: [] };
   Object.assign(st, { recording: false, screen: 'case' });
   render(rootId);
   const refresh = () => { if (views[rootId].state.screen === 'case') render(rootId); };
   try {
-    const rec = await run.stop();
-    if (rec.frames.length < 2) {
-      fachStatus[k] = { status: 'error', items: [], msg: 'Aufnahme zu kurz' };
-      refresh();
-      return;
-    }
-    toast(rootId, `Fach ${fach}: ${rec.frames.length} Bilder werden analysiert. Du kannst schon das nächste Fach filmen.`);
-    const { books, model, seconds } = await analyzeShelfSweep(rec.frames, { direction });
+    const { frames, meta } = await getFrames();
+    toast(rootId, `Fach ${fach}: ${frames.length} ${source === 'photos' ? 'Fotos' : 'Bilder'} werden analysiert. Du kannst schon das nächste Fach aufnehmen.`);
+    const { books, model, seconds, orderCheck } = await analyzeShelfSweep(frames, { direction, source });
     fachStatus[k] = {
       status: 'review',
       items: books.map(b => ({ title: b.title || '', author: b.author || '', kind: b.kind || 'book', unsure: !!b.unsure })),
-      meta: { frames: rec.frames.length, rec: Math.round(rec.seconds), model, seconds: Math.round(seconds), size: rec.size }
+      meta: { ...meta, source, frames: frames.length, model, seconds: Math.round(seconds), orderCheck }
     };
   } catch (err) {
     console.error('[BookFinder Erfassen]', err);
@@ -332,7 +372,7 @@ async function saveReviewed(rootId, btn) {
   btn.disabled = true;
   btn.textContent = 'Speichert …';
   try {
-    const list = await saveFach(whereOf(st), s.items, 'video');
+    const list = await saveFach(whereOf(st), s.items, s.meta?.source === 'photos' ? 'photo' : 'video');
     shelfBooks[k] = list;
     fachStatus[k] = { status: 'saved', items: list };
     st.screen = 'case';
@@ -378,6 +418,9 @@ function toast(rootId, text) {
 
 // ---------------------------------------------------------------- Hilfen
 const key = (caseId, sec, fach) => `${caseId}:${sec}:${fach}`;
+// Bücher ohne lesbaren Titel behalten ihren Platz und werden so angezeigt
+const NO_TITLE = 'Ohne Titel (nicht lesbar)';
+const titleOf = (it) => (it.title || '').trim() || NO_TITLE;
 const place = (st) => lib.places.find(p => p.id === st.placeId);
 const room = (st) => lib.rooms.find(r => r.id === st.roomId);
 const bookcase = (st) => lib.bookcases.find(b => b.id === st.bookcaseId);
@@ -430,6 +473,7 @@ function render(rootId) {
   else if (st.screen === 'addbook') html = renderAddBook(st);
   else if (st.screen === 'insert') html = renderInsert(st);
   else if (st.screen === 'inserted') html = renderInserted(st);
+  else if (st.screen === 'how') html = renderHow(st);
   else if (st.screen === 'film') html = renderFilm(st, rootId);
   else if (st.screen === 'review') html = renderReview(st);
   else if (st.screen === 'fach') html = renderFach(st);
@@ -578,7 +622,7 @@ function renderFach(st) {
   const rows = items.map((it, i) => `
     <button type="button" class="lib-book${st.hl?.k === k && st.hl?.idx === i ? ' is-hl is-hl-book' : ''}" data-act="book" data-id="${k}|${i}">
       <span class="lib-book-pos">${i + 1}</span>
-      <span class="lib-book-text"><span class="lib-book-title">${esc(it.title)}</span>${it.author ? `<span class="lib-muted">${esc(it.author)}</span>` : ''}</span>
+      <span class="lib-book-text"><span class="lib-book-title${(it.title || '').trim() ? '' : ' is-untitled'}">${esc(titleOf(it))}</span>${it.author ? `<span class="lib-muted">${esc(it.author)}</span>` : ''}</span>
       ${it.kind && it.kind !== 'book' ? `<span class="lib-kind">${KIND_LABEL[it.kind]}</span>` : ''}
     </button>`).join('');
   return header(st, fachName(b, st.section, st.fach), `${room(st)?.name || ''} › ${b.name}`) + `
@@ -600,7 +644,7 @@ function renderBookSheet(st) {
   return `
     <div class="lib-sheet-bg">
       <div class="lib-sheet" role="dialog" aria-label="Buchdetails">
-        <span class="lib-sheet-title">${esc(it.title)}</span>
+        <span class="lib-sheet-title">${esc(titleOf(it))}</span>
         <span class="lib-muted">${esc(it.author || 'Autor unbekannt')}${it.kind && it.kind !== 'book' ? ` · ${KIND_LABEL[it.kind]}` : ''}</span>
         <span class="lib-where"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>${esc(whereText(k, idx))}</span>
         <div class="lib-actions">
@@ -623,7 +667,7 @@ function renderResults(query) {
   if (!hits.length) return '<p class="lib-muted">Nichts gefunden.</p>';
   return `<p class="lib-muted">${hits.length} Treffer</p>` + hits.slice(0, 50).map(({ k, idx, it }) => `
     <button type="button" class="lib-book" data-act="book" data-id="${k}|${idx}">
-      <span class="lib-book-text"><span class="lib-book-title">${esc(it.title)}</span>
+      <span class="lib-book-text"><span class="lib-book-title${(it.title || '').trim() ? '' : ' is-untitled'}">${esc(titleOf(it))}</span>
       ${it.author ? `<span class="lib-muted">${esc(it.author)}</span>` : ''}
       <span class="lib-where-small">${esc(whereText(k, idx))}</span></span>
     </button>`).join('');
@@ -638,11 +682,11 @@ function renderSearch(st, rootId) {
 }
 
 const STATUS = {
-  none: { label: 'Noch nicht erfasst', cls: '', action: 'Filmen' },
+  none: { label: 'Noch nicht erfasst', cls: '', action: 'Aufnehmen' },
   analysing: { label: 'Wird analysiert …', cls: 'is-busy', action: '' },
   review: { label: 'Bitte prüfen', cls: 'is-review', action: 'Prüfen' },
-  saved: { label: 'Gespeichert', cls: 'is-saved', action: 'Neu filmen' },
-  error: { label: 'Fehler', cls: 'is-error', action: 'Neu filmen' }
+  saved: { label: 'Gespeichert', cls: 'is-saved', action: 'Neu aufnehmen' },
+  error: { label: 'Fehler', cls: 'is-error', action: 'Neu aufnehmen' }
 };
 
 function renderCaptureCase(st) {
@@ -660,26 +704,60 @@ function renderCaptureCase(st) {
   }).join('');
   return header(st, b.name, `Erfassen · ${room(st)?.name || ''}`) + `
     <p class="lib-info">${esc([sizeText(b), layerText(b)].filter(Boolean).join(' · '))} · ${saved}/${list.length} Fächer gespeichert</p>
-    ${next ? `<button type="button" class="btn lib-primary" data-act="next">Nächstes Fach filmen: ${esc(fachName(b, next.sec, next.fach))}</button>` : ''}
+    ${next ? `<button type="button" class="btn lib-primary" data-act="next">Nächstes Fach aufnehmen: ${esc(fachName(b, next.sec, next.fach))}</button>` : ''}
     <div class="lib-front">${rows}</div>`;
+}
+
+// Vor der Aufnahme fragen: Video oder Fotos (und wie viele Fotos)
+function renderHow(st) {
+  const b = bookcase(st);
+  const photo = st.capMode === 'photo';
+  return header(st, `${fachName(b, st.section, st.fach)} aufnehmen`, `${b.name} · ${room(st)?.name || ''}`) + `
+    <p class="lib-info">Wie möchtest du dieses Fach aufnehmen?</p>
+    <div class="lib-how" role="radiogroup" aria-label="Aufnahmeart">
+      <button type="button" class="lib-choice${photo ? '' : ' is-on'}" role="radio" aria-checked="${!photo}" data-act="how-mode" data-id="video">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"></rect><path d="M16 10l6-3v10l-6-3z"></path></svg>
+        <span><span class="lib-choice-title">Video</span><span class="lib-muted">Zügig am Fach entlang filmen</span></span>
+      </button>
+      <button type="button" class="lib-choice${photo ? ' is-on' : ''}" role="radio" aria-checked="${photo}" data-act="how-mode" data-id="photo">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        <span><span class="lib-choice-title">Fotos</span><span class="lib-muted">Einige Fotos nacheinander, danach sofort Analyse</span></span>
+      </button>
+    </div>
+    ${photo ? `
+    <div class="lib-count">
+      <span>Wie viele Fotos?</span>
+      <div class="lib-stepper">
+        <button type="button" class="lib-step" data-act="count" data-id="-1" aria-label="Ein Foto weniger" ${st.photoCount <= 1 ? 'disabled' : ''}>−</button>
+        <output class="lib-step-val" aria-live="polite">${st.photoCount}</output>
+        <button type="button" class="lib-step" data-act="count" data-id="1" aria-label="Ein Foto mehr" ${st.photoCount >= 10 ? 'disabled' : ''}>+</button>
+      </div>
+    </div>
+    <p class="lib-muted">Tipp: Das letzte Buch am Rand jedes Fotos im nächsten Foto noch einmal mit aufnehmen. Doppelte Bücher zählt die Analyse nur einmal.</p>` : ''}
+    <button type="button" class="btn lib-primary" data-act="how-go">${photo ? `Weiter: ${st.photoCount} ${st.photoCount === 1 ? 'Foto' : 'Fotos'} aufnehmen` : 'Weiter: Video aufnehmen'}</button>`;
 }
 
 function renderFilm(st, rootId) {
   const b = bookcase(st);
   const rtl = st.direction === 'rtl';
+  const photo = st.capMode === 'photo';
+  const shot = st.photos.length;
   const arrow = rtl
     ? '<path d="M44 12 H6 M14 4 L6 12 L14 20"></path>'
     : '<path d="M4 12 H42 M34 4 L42 12 L34 20"></path>';
-  const title = `${fachName(b, st.section, st.fach)} filmen`;
+  const title = `${fachName(b, st.section, st.fach)} ${photo ? 'fotografieren' : 'filmen'}`;
+  const busy = st.recording || shot > 0;
   // Querformat: .lib-stage wird per CSS zum Vollbild, Bedienelemente rechts (wie eine Kamera-App)
   return header(st, title, `${b.name} · ${room(st)?.name || ''}`) + `
     <p class="lib-rotate">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"></rect><path d="M2 14a8 8 0 0 0 6 6M5 20l3 0 0-3"></path></svg>
-      Zum Filmen Handy <b>quer</b> drehen
+      Zum ${photo ? 'Fotografieren' : 'Filmen'} Handy <b>quer</b> drehen
     </p>
     <ul class="lib-tips">
       <li>Abstand so wählen, dass oberes und unteres Brett an den Linien liegen.</li>
-      <li>Zügig und gleichmäßig ${rtl ? '<b>von rechts nach links</b>' : '<b>von links nach rechts</b>'} am Fach entlang.</li>
+      ${photo
+        ? `<li>${st.photoCount} Fotos ${rtl ? '<b>von rechts nach links</b>' : '<b>von links nach rechts</b>'}. Das Buch am Rand im nächsten Foto noch einmal mit aufnehmen.</li><li>Nach dem letzten Foto startet die Analyse sofort.</li>`
+        : `<li>Zügig und gleichmäßig ${rtl ? '<b>von rechts nach links</b>' : '<b>von links nach rechts</b>'} am Fach entlang.</li>`}
       <li>Licht einschalten – dann werden die Bilder schärfer.</li>
     </ul>
     <div class="lib-stage${st.recording ? ' is-rec' : ''}">
@@ -689,7 +767,8 @@ function renderFilm(st, rootId) {
         <div class="lib-cam-line lib-cam-bottom"><span>unteres Brett</span></div>
         <svg class="lib-cam-arrow" width="48" height="24" viewBox="0 0 48 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${arrow}</svg>
         <span class="lib-cam-title">${esc(title)}</span>
-        ${st.recording ? `<span class="lib-cam-rec"><span class="lib-rec-dot"></span><span id="${rootId}-rec-time">0 s</span></span><span class="lib-cam-warn" id="${rootId}-rec-warn" hidden>Langsamer!</span>` : `<span class="lib-cam-note" id="${rootId}-cam-note">Kamera wird gestartet …</span>`}
+        ${photo ? `<span class="lib-cam-rec lib-cam-count" aria-live="polite">Foto ${Math.min(shot + 1, st.photoCount)} von ${st.photoCount}</span>` : ''}
+        ${photo ? `<span class="lib-cam-note" id="${rootId}-cam-note">Kamera wird gestartet …</span>` : st.recording ? `<span class="lib-cam-rec"><span class="lib-rec-dot"></span><span id="${rootId}-rec-time">0 s</span></span><span class="lib-cam-warn" id="${rootId}-rec-warn" hidden>Langsamer!</span>` : `<span class="lib-cam-note" id="${rootId}-cam-note">Kamera wird gestartet …</span>`}
       </div>
       <div class="lib-stage-ctrl">
         <button type="button" class="lib-stage-close" data-act="back" aria-label="Schließen">✕</button>
@@ -697,14 +776,17 @@ function renderFilm(st, rootId) {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"></path></svg>
           <span>Licht</span>
         </button>
-        ${st.recording
-          ? '<button type="button" class="lib-shutter is-stop" data-act="rec-stop" aria-label="Aufnahme beenden"><span></span></button>'
-          : '<button type="button" class="lib-shutter" data-act="rec-start" aria-label="Aufnahme starten"><span></span></button>'}
+        ${photo
+          ? `<button type="button" class="lib-shutter is-photo" data-act="shot" aria-label="Foto ${Math.min(shot + 1, st.photoCount)} von ${st.photoCount} aufnehmen"><span></span></button>`
+          : st.recording
+            ? '<button type="button" class="lib-shutter is-stop" data-act="rec-stop" aria-label="Aufnahme beenden"><span></span></button>'
+            : '<button type="button" class="lib-shutter" data-act="rec-start" aria-label="Aufnahme starten"><span></span></button>'}
         <div class="lib-dir lib-dir-stage" role="group" aria-label="Richtung">
-          <button type="button" class="lib-dir-btn${rtl ? ' is-on' : ''}" data-act="dir" data-id="rtl" aria-pressed="${rtl}" aria-label="von rechts nach links" ${st.recording ? 'disabled' : ''}>←</button>
-          <button type="button" class="lib-dir-btn${rtl ? '' : ' is-on'}" data-act="dir" data-id="ltr" aria-pressed="${!rtl}" aria-label="von links nach rechts" ${st.recording ? 'disabled' : ''}>→</button>
+          <button type="button" class="lib-dir-btn${rtl ? ' is-on' : ''}" data-act="dir" data-id="rtl" aria-pressed="${rtl}" aria-label="von rechts nach links" ${busy ? 'disabled' : ''}>←</button>
+          <button type="button" class="lib-dir-btn${rtl ? '' : ' is-on'}" data-act="dir" data-id="ltr" aria-pressed="${!rtl}" aria-label="von links nach rechts" ${busy ? 'disabled' : ''}>→</button>
         </div>
-        <span class="lib-shutter-label">${st.recording ? 'Stopp' : 'Start'}</span>
+        ${photo && shot > 0 ? '<button type="button" class="lib-undo" data-act="photo-undo">↺ Letztes</button>' : ''}
+        <span class="lib-shutter-label">${photo ? `${shot}/${st.photoCount}` : st.recording ? 'Stopp' : 'Start'}</span>
       </div>
     </div>`;
 }
@@ -718,15 +800,15 @@ function renderReview(st) {
       <span class="lib-item-pos">${i + 1}</span>
       <div class="lib-item-fields">
         <label class="lib-sr" for="t${i}">Titel ${i + 1}</label>
-        <input id="t${i}" class="lib-input" data-field="title" data-idx="${i}" value="${esc(it.title)}">
+        <input id="t${i}" class="lib-input" data-field="title" data-idx="${i}" value="${esc(it.title)}" placeholder="Titel nicht lesbar – bei Bedarf eintragen">
         <label class="lib-sr" for="a${i}">Autor ${i + 1}</label>
         <input id="a${i}" class="lib-input lib-input-small" data-field="author" data-idx="${i}" value="${esc(it.author)}" placeholder="Autor">
-        <span class="lib-muted">${KIND_LABEL[it.kind] || ''}${it.unsure ? ' · bitte prüfen' : ''}</span>
+        <span class="lib-muted">${KIND_LABEL[it.kind] || ''}${(it.title || '').trim() ? (it.unsure ? ' · bitte prüfen' : '') : ' · Titel nicht lesbar, Platz bleibt erhalten'}</span>
       </div>
       <button type="button" class="lib-del" data-act="del" data-id="${i}" aria-label="Eintrag ${i + 1} entfernen">✕</button>
     </div>`).join('');
   return header(st, `${fachName(b, st.section, st.fach)} prüfen`, `${b.name} · ${room(st)?.name || ''}`) + `
-    <p class="lib-info">${s.items.length} Einträge · ${unsure} unsicher · von links nach rechts · ${s.meta ? `${s.meta.frames} Bilder · ${s.meta.rec} s Aufnahme · Gemini ${s.meta.seconds} s` : ''}</p>
+    <p class="lib-info">${s.items.length} Einträge · ${unsure} unsicher · von links nach rechts · ${s.meta ? (s.meta.source === 'photos' ? `${s.meta.frames} Fotos · Gemini ${s.meta.seconds} s` : `${s.meta.frames} Bilder · ${s.meta.rec} s Aufnahme · Gemini ${s.meta.seconds} s`) + (import.meta.env.DEV && s.meta.orderCheck ? ` · Reihenfolge ${s.meta.orderCheck}` : '') : ''}</p>
     <button type="button" class="set-add" data-act="reverse">↔ Reihenfolge umdrehen (falls 1 nicht ganz links ist)</button>
     <div class="lib-items">${rows}</div>
     <div class="lib-actions">
@@ -767,7 +849,7 @@ function renderInsert(st) {
   const items = shelfBooks[k] || [];
   const slot = (i) => `<button type="button" class="lib-slot" data-act="insert-at" data-id="${i}">＋ hier einfügen (${i + 1}. von links)</button>`;
   const rows = items.map((it, i) => `${slot(i)}
-    <div class="lib-book lib-book-static"><span class="lib-book-pos">${i + 1}</span><span class="lib-book-text"><span class="lib-book-title">${esc(it.title)}</span>${it.author ? `<span class="lib-muted">${esc(it.author)}</span>` : ''}</span></div>`).join('');
+    <div class="lib-book lib-book-static"><span class="lib-book-pos">${i + 1}</span><span class="lib-book-text"><span class="lib-book-title${(it.title || '').trim() ? '' : ' is-untitled'}">${esc(titleOf(it))}</span>${it.author ? `<span class="lib-muted">${esc(it.author)}</span>` : ''}</span></div>`).join('');
   return header(st, `${fachName(b, st.section, st.fach)}: Platz wählen`, `${room(st)?.name || ''} › ${b.name}`) + `
     <p class="lib-info">Zwischen den richtigen Büchern antippen. Die Bücher rechts davon rücken eine Position weiter.</p>
     <div class="lib-books">${rows}${slot(items.length)}</div>`;
@@ -780,10 +862,10 @@ function renderInserted(st) {
   const rows = items.map((x, i) => {
     const cls = i === idx ? ' is-hl' : (i > idx ? ' is-moved' : '');
     const note = i === idx ? '<span class="lib-kind lib-kind-new">neu</span>' : (i > idx ? `<span class="lib-moved">war ${i}. → jetzt ${i + 1}.</span>` : '');
-    return `<div class="lib-book lib-book-static${cls}"><span class="lib-book-pos">${i + 1}</span><span class="lib-book-text"><span class="lib-book-title">${esc(x.title)}</span>${x.author ? `<span class="lib-muted">${esc(x.author)}</span>` : ''}</span>${note}</div>`;
+    return `<div class="lib-book lib-book-static${cls}"><span class="lib-book-pos">${i + 1}</span><span class="lib-book-text"><span class="lib-book-title${(x.title || '').trim() ? '' : ' is-untitled'}">${esc(titleOf(x))}</span>${x.author ? `<span class="lib-muted">${esc(x.author)}</span>` : ''}</span>${note}</div>`;
   }).join('');
   return header(st, 'Buch eingefügt', 'Erfassen') + `
-    <p class="set-msg" role="status"><b>„${esc(it.title)}“</b> steht jetzt in ${esc(whereText(k, idx))}.<br>${shifted ? `${shifted} Bücher rechts davon haben eine neue Position.` : 'Keine anderen Bücher wurden verschoben.'}</p>
+    <p class="set-msg" role="status"><b>„${esc(titleOf(it))}“</b> steht jetzt in ${esc(whereText(k, idx))}.<br>${shifted ? `${shifted} Bücher rechts davon haben eine neue Position.` : 'Keine anderen Bücher wurden verschoben.'}</p>
     <div class="lib-books">${rows}</div>
     <div class="lib-actions">
       <button type="button" class="btn btn-secondary" data-act="done">Fertig</button>

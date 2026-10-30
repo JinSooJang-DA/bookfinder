@@ -102,6 +102,13 @@
 }
 .lib-choice > span { display: flex; flex-direction: column; gap: 4px; }
 .lib-choice-title { font-size: 1.1rem; font-weight: 700; color: #e8dcc4; }
+.lib-how { display: flex; flex-direction: column; gap: 10px; }
+.lib-choice.is-on { background: rgba(143,194,138,0.2); border-color: #8fc28a; border-width: 2.5px; color: #e8f3e6; }
+.lib-count { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #e8dcc4; font-weight: 600; }
+.lib-stepper { display: flex; align-items: center; gap: 6px; }
+.lib-step { width: 48px; height: 48px; border-radius: 12px; background: transparent; color: #b7e0b2; border: 1.5px solid #8fc28a; font-size: 1.4rem; cursor: pointer; }
+.lib-step:disabled { opacity: 0.35; cursor: default; }
+.lib-step-val { min-width: 40px; text-align: center; font-size: 1.4rem; font-weight: 700; color: #e8f3e6; }
 .lib-primary { min-height: 48px; background: #8fc28a; color: #14210f; border: none; font-weight: 700; }
 
 .lib-fach-cap { gap: 8px; }
@@ -253,6 +260,12 @@
   display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
 }
 .lib-shutter span { width: 54px; height: 54px; border-radius: 50%; background: #d9534f; transition: all 0.15s; }
+.lib-shutter.is-photo span { background: #f3ead8; }
+.lib-shutter.is-photo:active span { width: 46px; height: 46px; }
+.lib-undo { min-height: 36px; padding: 0 10px; border-radius: 10px; background: rgba(0,0,0,0.4); color: #f3ead8; border: 1px solid rgba(243,234,216,0.4); font: inherit; font-size: 0.75rem; cursor: pointer; }
+.lib-cam.is-flash::after { content: ''; position: absolute; inset: 0; background: #fff; z-index: 2; animation: lib-flash 0.25s ease-out forwards; pointer-events: none; }
+@keyframes lib-flash { from { opacity: 0.8; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lib-cam.is-flash::after { animation: none; opacity: 0; } }
 .lib-shutter.is-stop span { width: 28px; height: 28px; border-radius: 6px; }
 .lib-shutter-label { font-size: 0.75rem; color: #c1a88a; }
 .lib-stage-close { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.4); color: #f3ead8; border: 1px solid rgba(243,234,216,0.4); cursor: pointer; display: none; }
@@ -294,3 +307,9 @@
 }
 .lib-cam-warn[hidden] { display: none; }
 .lib-fach-cap.is-error .lib-status { color: #e07a6f; }
+
+/* Foto-Modus: Zähler oben in der Mitte */
+.lib-cam-rec.lib-cam-count { top: 8px; bottom: auto; left: 50%; transform: translateX(-50%); font-weight: 700; }
+
+/* Buch ohne lesbaren Titel */
+.lib-book-title.is-untitled { font-style: italic; color: #a8957a; }

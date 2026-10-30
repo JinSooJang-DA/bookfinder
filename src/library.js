@@ -98,7 +98,8 @@ function bookData(b, where_, position, source) {
 export async function saveFach(where_, items, source = 'video') {
   const old = await loadFach(where_.bookcaseId, where_.section, where_.fach);
   const col = collection(db, 'books');
-  const fresh = items.filter(x => (x.title || '').trim()).map((b, i) => ({ ref: doc(col), data: { ...bookData(b, where_, i + 1, source), createdAt: serverTimestamp() } }));
+  // Auch Einträge ohne lesbaren Titel behalten: sie belegen einen Platz, sonst stimmen die Positionen nicht.
+  const fresh = items.map((b, i) => ({ ref: doc(col), data: { ...bookData(b, where_, i + 1, source), createdAt: serverTimestamp() } }));
   await commitInChunks([
     ...old.map(o => (batch) => batch.delete(doc(db, 'books', o.id))),
     ...fresh.map(f => (batch) => batch.set(f.ref, f.data))

@@ -297,29 +297,62 @@ const SWEEP_SCHEMA = Schema.array({
       title: Schema.string(),
       author: Schema.string(),
       kind: Schema.enumString({ enum: ['book', 'film', 'music', 'other'] }),
-      unsure: Schema.boolean()
+      unsure: Schema.boolean(),
+      frame: Schema.integer(),
+      x: Schema.number()
     },
     optionalProperties: ['author']
   })
 });
 
-export async function analyzeShelfSweep(frameBase64List, { direction = 'rtl', thinking = '' } = {}) {
+// Reihenfolge prüfen, ohne sich auf die Richtung zu verlassen:
+// Gemini nennt pro Eintrag ein Bild (frame) und die waagrechte Lage darin (x: 0 = links, 1 = rechts).
+// Stehen zwei Nachbarn im selben Bild, muss x in einer Links→Rechts-Liste steigen. Sonst Liste umdrehen.
+export function fixShelfOrder(list, direction) {
+  let up = 0, down = 0;
+  for (let i = 1; i < list.length; i++) {
+    const a = list[i - 1], b = list[i];
+    if (a.frame == null || a.frame !== b.frame || typeof a.x !== 'number' || typeof b.x !== 'number') continue;
+    if (b.x > a.x) up++; else if (b.x < a.x) down++;
+  }
+  if (up + down >= 3) return { books: down > up ? list.slice().reverse() : list, check: `x ${up}↑/${down}↓` };
+  // Zu wenig Paare: Richtung der Aufnahme benutzen (rtl → Bildnummern fallen von links nach rechts)
+  let fUp = 0, fDown = 0;
+  for (let i = 1; i < list.length; i++) {
+    if (list[i].frame > list[i - 1].frame) fUp++; else if (list[i].frame < list[i - 1].frame) fDown++;
+  }
+  const wrong = direction === 'rtl' ? fUp > fDown : fDown > fUp;
+  return { books: wrong ? list.slice().reverse() : list, check: `frame ${fUp}↑/${fDown}↓` };
+}
+
+export async function analyzeShelfSweep(frameBase64List, { direction = 'rtl', thinking = '', source = 'video' } = {}) {
   const extraConfig = thinking && ThinkingLevel[thinking] ? { thinkingConfig: { thinkingLevel: ThinkingLevel[thinking] } } : {};
   if (GEMINI_BACKEND !== 'firebase') throw new Error('Video-Analyse geht nur mit VITE_GEMINI_BACKEND=firebase.');
   const n = frameBase64List.length;
   const dirText = direction === 'rtl'
     ? 'moving from the RIGHT end of the shelf to the LEFT end (frame 1 shows the right end)'
     : 'moving from the LEFT end of the shelf to the RIGHT end (frame 1 shows the left end)';
+  // Video: viele, stark überlappende Bilder. Fotos: wenige Bilder, nur am Rand überlappend.
+  const intro = source === 'photos'
+    ? [
+        `These ${n} photos were taken one after another along ONE shelf of a bookcase, ${dirText}.`,
+        'Neighbouring photos overlap only at their edges: the last items at the edge of one photo appear again at the start of the next photo. Count every item only once.'
+      ]
+    : [
+        `These ${n} photos are consecutive frames from a video that sweeps along ONE shelf of a bookcase, ${dirText}.`,
+        'Neighbouring frames overlap heavily, so the same item appears in several frames. Count every item only once.'
+      ];
   const prompt = [
-    `These ${n} photos are consecutive frames from a video that sweeps along ONE shelf of a bookcase, ${dirText}.`,
-    'Neighbouring frames overlap heavily, so the same item appears in several frames. Count every item only once.',
-    'Return ONE list of all items standing or lying on THIS shelf, in the order in which they appear in the video:',
-    'start with the items seen in Frame 1 and end with the items seen in the last frame. Do not reorder or reverse the list.',
+    ...intro,
+    'Return ONE list of all items standing or lying on THIS shelf, in their real physical order on the shelf from the LEFT end to the RIGHT end.',
+    'For every item also give "frame": the number of the frame in which its spine is best readable, and "x": the horizontal position of the spine centre in that frame, from 0 (left edge of the image) to 1 (right edge).',
     'Read title and author exactly as printed on the spine, in the original language. Do not translate.',
     'kind: "book" for books, "film" for DVD/Blu-ray/video, "music" for CDs/records, "other" for other titled media.',
     'Ignore toys, model cars, figures, photos, papers, decorations, boxes without a title, ring binders/file folders and stamp or photo albums.',
     'Ignore items on the shelves above or below that are only partly visible at the top or bottom edge of the frames.',
-    'Do not guess or invent titles. If a spine is only partly readable, return the readable part and set unsure=true.'
+    'Do not guess or invent titles. If a spine is only partly readable, return the readable part and set unsure=true.',
+    'If you can clearly see a book or medium (small or large) but no text on its spine is readable (blank spine, too small, too dark, turned away), do NOT skip it:',
+    'include it at its position with title "" (empty) and unsure=true, so that the count and the positions on the shelf stay correct.'
   ].join('\n');
   const parts = [{ text: prompt }];
   frameBase64List.forEach((data, i) => {
@@ -332,10 +365,10 @@ export async function analyzeShelfSweep(frameBase64List, { direction = 'rtl', th
     const startedAt = performance.now();
     try {
       const { text } = await requestBookList(model, parts, null, SWEEP_SCHEMA, extraConfig);
-      // Gemini liefert die Aufnahme-Reihenfolge; hier in Links→Rechts umwandeln (Position 1 = ganz links).
-      const inSweepOrder = JSON.parse(text);
-      const books = direction === 'rtl' ? inSweepOrder.reverse() : inSweepOrder;
-      return { books, model, seconds: (performance.now() - startedAt) / 1000 };
+      // Position 1 = ganz links. Gemini soll links→rechts liefern; fixShelfOrder prüft das anhand von frame/x.
+      const { books, check } = fixShelfOrder(JSON.parse(text), direction);
+      console.info(`[BookFinder Sweep] Reihenfolge-Prüfung: ${check}`);
+      return { books, model, seconds: (performance.now() - startedAt) / 1000, orderCheck: check };
     } catch (err) {
       console.info(`[BookFinder Sweep] ${model}: failed (${err.status ?? '?'})`);
       if (!err.busy || i === GEMINI_MODELS.length - 1) throw err;

@@ -76,3 +76,29 @@ export function startSweepCapture(video, { windowSec = 0.5, maxWidth = 1920, sam
     }
   };
 }
+
+/**
+ * Ein einzelnes Foto für den Foto-Modus: nimmt einige Bilder kurz hintereinander auf
+ * und behält das schärfste (gegen Verwackeln beim Tippen). Liefert Base64-JPEG.
+ */
+export async function captureSharpPhoto(video, { samples = 5, gapMs = 80, maxWidth = 2560 } = {}) {
+  const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+  const sw = 240, sh = Math.max(2, Math.round(sw * vh / vw));
+  const small = document.createElement('canvas');
+  small.width = sw; small.height = sh;
+  const sctx = small.getContext('2d', { willReadFrequently: true });
+  const outW = Math.min(maxWidth, vw), outH = Math.round(outW * vh / vw);
+  const best = document.createElement('canvas');
+  best.width = outW; best.height = outH;
+  const bctx = best.getContext('2d');
+  let bestScore = -1;
+  for (let i = 0; i < samples; i++) {
+    if (i) await new Promise(r => setTimeout(r, gapMs));
+    sctx.drawImage(video, 0, 0, sw, sh);
+    const s = sharpness(sctx, sw, sh);
+    if (s > bestScore) { bestScore = s; bctx.drawImage(video, 0, 0, outW, outH); }
+  }
+  const blob = await new Promise(res => best.toBlob(res, 'image/jpeg', 0.92));
+  if (!blob) throw new Error('Foto konnte nicht gespeichert werden');
+  return blobToBase64(blob);
+}
