@@ -139,13 +139,13 @@ export const i18n = {
     lblUiLang: "App-Sprache",
 
     menuLibraryTitle: "Bibliothek",
-    menuLibraryDesc: "(Bestand durchsuchen)",
+    menuLibraryDesc: "(Ansehen & Suchen)",
     menuGalleryTitle: "Galerie",
     menuGalleryDesc: "(Stapel-Analyse)",
-    menuBookInputTitle: "Bucherfassung",
-    menuBookInputDesc: "(Setup, Scan, Barcode)",
-    menuManageTitle: "Setup & Löschen",
-    menuManageDesc: "(Sprache & Daten)",
+    menuBookInputTitle: "Erfassen",
+    menuBookInputDesc: "(Filmen, Barcode)",
+    menuManageTitle: "Einstellungen",
+    menuManageDesc: "(Räume, Regale, Daten)",
 
     hubViewTitle: "Bucherfassung-Zentrale",
     hubViewDesc: "Wählen Sie Ihre bevorzugte Methode zur Erfassung von Büchern.",

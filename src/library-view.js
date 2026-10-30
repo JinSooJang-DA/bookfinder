@@ -46,7 +46,6 @@ function onClick(e) {
   if (act === 'case') Object.assign(state, { screen: 'case', bookcaseId: id, sectionIdx: null });
   if (act === 'back') goBack();
   if (act === 'search') { window.switchView('searchView'); return; }
-  if (act === 'film') { alert('Kommt bald: Fach filmen.'); return; }
   render();
   root()?.scrollIntoView({ block: 'start' });
 }
@@ -188,7 +187,7 @@ function renderCase() {
   } else {
     const n = sections[0].layers;
     front = `<div class="lib-front">` + Array.from({ length: n }, (_, k) =>
-      `<div class="lib-fach"><span class="lib-fach-label">Fach ${k + 1}${k === 0 ? ' (oben)' : ''}</span><span class="lib-muted">Noch nicht erfasst</span><button type="button" class="lib-film" data-act="film" data-id="${k + 1}">Fach filmen</button></div>`
+      `<div class="lib-fach"><span class="lib-fach-label">Fach ${k + 1}${k === 0 ? ' (oben)' : ''}</span><span class="lib-muted">Noch nicht erfasst</span></div>`
     ).join('') + `</div>`;
   }
   return header(b.name, crumb) + `

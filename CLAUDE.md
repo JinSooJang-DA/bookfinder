@@ -75,6 +75,7 @@ git diff --check
 
 - **탐색 화면 (2026-10-30, 실기기 확인됨):** `src/library-view.js`·`src/library-view.css`, `index.html`의 `libraryView`. 메인 메뉴 Library 책 → Meine Bibliothek(건물) → Wohin?(Wohnung/Keller) → 도면 → 방 → 책장 정면(Fach 목록, 섹터·하단 수납장). "Buch suchen"은 기존 `searchView`로. 앱 기본 언어 `de`.
 - **진행 원칙 (사용자 결정, 2026-10-30):** UX/UI 흐름을 먼저 완성하고, 사진·영상(촬영·분석·저장 연결)은 그다음에 넣는다. 그때까지 "Fach filmen" 등은 자리만 만든다.
+- **메뉴 역할 분리 (사용자 결정, 2026-10-30):** Bibliothek(첫 메뉴)은 이미 분석된 책을 보여 주기만 한다. 입력·촬영·분석은 별도 메뉴에서 한다(Bibliothek 안에 촬영 버튼 없음). 메인 메뉴는 책 세 권: **Bibliothek**(보기·검색) · **Erfassen**(영상 촬영, 바코드) · **Einstellungen**(방·책장 구조, 데이터, 언어). Galerie는 메뉴에서 제외(코드는 남아 있음).
 
 ## 다음 계획 (2026-10-29 사용자와 정함)
 

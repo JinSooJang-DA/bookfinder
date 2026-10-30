@@ -29,7 +29,7 @@
       <button id="btnLogout" class="btn btn-danger btn-sm">Logout</button>
     </div>
 
-    <!-- 💡 메인 책장 메뉴 (정확히 4개) -->
+    <!-- 메인 메뉴: 1 Bibliothek(보기·검색) · 2 Erfassen(입력) · 3 Einstellungen(설정) — Galerie는 2026-10-30 메뉴에서 제외 -->
     <div id="mainDashboard">
       <div class="bookshelf-menu">
         
@@ -39,15 +39,6 @@
           <div class="book-cover">
             <span id="menuLibraryTitle">Library</span>
             <span id="menuLibraryDesc" class="menu-desc">(Inventory Lookup)</span>
-          </div>
-        </div>
-
-        <!-- 2. 갤러리 -->
-        <div class="menu-book" onclick="handleBookClick(this, 'galleryView')">
-          <div class="book-spine"><span id="spineGalleryTitle">Gallery</span></div>
-          <div class="book-cover">
-            <span id="menuGalleryTitle">Gallery</span>
-            <span id="menuGalleryDesc" class="menu-desc">(Batch Re-analyze)</span>
           </div>
         </div>
 
