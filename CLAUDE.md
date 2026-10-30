@@ -71,13 +71,15 @@ git diff --check
 - `places/{id}` {name, order, icon, hasPlan} · `rooms/{id}` {placeId, name, order, hasBooks, plan{x,y,w,h} 미터} · `bookcases/{id}` {placeId, roomId, name, order, widthM, heightM, plan, sections[{layers}], note?, baseCabinet?}. Fach 1 = 맨 위.
 - 개발용 화면 `dev-tools.html`(처음 데이터 넣기, 도면·표 확인). 처음 데이터 22개(장소 2, 방 11, 책장 9) 생성 완료.
 - 영상 실험 화면 `video-test.html`. 서재 1 Fach 1: 느린 영상(20.7초) 69/70·84항목·Gemini 41초. 1.7배 빠른 영상(12.1초): 0.75초 간격 16장 64/70·Gemini 47초, **0.5초 간격 24장 68/70·82항목·Gemini 82초**(지어낸 항목 없음, 참고 목록 밖 항목은 실제 책).
-- **실제 앱 첫 결과 (2026-10-30, 휴대폰 https):** Erfassen에서 녹화 중 0.5초마다 선명한 장면 수집(`src/live-sweep.js`) → `analyzeShelfSweep` → 확인 화면. Arbeitszimmer Regal 1 Fach 1 = **78권**. 분석 약 90초. 두 번째 층을 이어서 찍어도 **동시에 분석**되어 약 95초에 둘 다 끝남(기다림 거의 없음). 저장은 아직 메모리.
+- **실제 앱 첫 결과 (2026-10-30, 휴대폰 https):** Erfassen에서 녹화 중 0.5초마다 선명한 장면 수집(`src/live-sweep.js`) → `analyzeShelfSweep` → 확인 화면. Arbeitszimmer Regal 1 Fach 1 = **78권**. 분석 약 90초. 두 번째 층을 이어서 찍어도 **동시에 분석**되어 약 95초에 둘 다 끝남(기다림 거의 없음).
 - **촬영 방향:** 휴대폰 **가로**(사용자 실제 촬영 방식, 68/70 검증). 실제 카메라 연결 시: 세로로 들면 "Bitte Handy quer drehen" 안내를 띄우고 가로일 때만 촬영 버튼 표시, 카메라 화면 위에 위·아래 선반 가이드 선.
 - **촬영 방식 결정 (2026-10-30):** 층별 가로 영상, 빠르게(약 12초/2.5m) 훑어도 됨, 장면 간격 0.5초, thinking 기본값(niedrig는 효과 없음). 분석은 뒤에서 돌리고 다음 층 촬영(여러 층 동시 분석 가능). 개선 후보: 장면을 2~3묶음으로 나눠 병렬 분석 후 합치기.
 
 - **탐색 화면 (2026-10-30, 실기기 확인됨):** `src/library-view.js`·`src/library-view.css`, `index.html`의 `libraryView`. 메인 메뉴 Library 책 → Meine Bibliothek(건물) → Wohin?(Wohnung/Keller) → 도면 → 방 → 책장 정면(Fach 목록, 섹터·하단 수납장). "Buch suchen"은 기존 `searchView`로. 앱 기본 언어 `de`.
 - **진행 원칙 (사용자 결정, 2026-10-30):** UX/UI 흐름을 먼저 완성하고, 사진·영상(촬영·분석·저장 연결)은 그다음에 넣는다. 그때까지 "Fach filmen" 등은 자리만 만든다.
 - **한 권 추가 (사용자 요청, 2026-10-30):** Erfassen › "Einzelnes Buch hinzufügen" — 바코드 없이 제목·저자·종류 입력 → 도면에서 방·책장·층 선택 → 책 사이 정확한 자리에 끼우기. **끼운 자리 오른쪽 책들은 위치(position)가 1씩 밀린다** → 실제 저장 시 같은 층의 해당 책들 position을 함께 갱신해야 한다(배치 쓰기).
+- **책 저장 (2026-10-30):** Firestore `books` 새 형식 `v: 2` {v, title, author, kind(book/film/music/other), unsure, placeId, roomId, bookcaseId, section, fach, position(1 = 맨 왼쪽), source(video/manual), createdAt, updatedAt}. `src/library.js`: `loadShelfBooks()`(v==2만, Fach별 묶음), `saveFach()`(그 Fach의 기존 책을 지우고 1..n으로 새로 씀, 배치 450개씩), `insertBook()`(끼운 자리 뒤 책 position +1과 새 책을 한 배치로). 확인 화면 "Speichern" = saveFach. `v`가 없는 옛 더미 책은 `dev-tools.html` › Alte Testdaten에서 세고 두 번 눌러 삭제(사용자 동의함).
+- **순서 (2026-10-30 수정):** 오른쪽→왼쪽 촬영 후 맨 오른쪽 책이 1번으로 나오던 문제. 이제 Gemini에게 **영상 순서대로(Frame 1부터)** 달라고 하고, 코드가 `rtl`이면 뒤집는다(`analyzeShelfSweep`). 그래도 틀리면 확인 화면 "↔ Reihenfolge umdrehen" 버튼.
 - **메뉴 역할 분리 (사용자 결정, 2026-10-30):** Bibliothek(첫 메뉴)은 이미 분석된 책을 보여 주기만 한다. 입력·촬영·분석은 별도 메뉴에서 한다(Bibliothek 안에 촬영 버튼 없음). 메인 메뉴는 책 세 권: **Bibliothek**(보기·검색) · **Erfassen**(영상 촬영, 바코드) · **Einstellungen**(방·책장 구조, 데이터, 언어). Galerie는 메뉴에서 제외(코드는 남아 있음).
 
 ## 다음 계획 (2026-10-29 사용자와 정함)

@@ -1,7 +1,7 @@
 // src/dev-tools.js — Entwicklerwerkzeuge (nur npm run dev): Bibliotheks-Aufbau anlegen und prüfen
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase.js';
-import { loadLibrary, seedLibrary, totalLayers } from './library.js';
+import { loadLibrary, seedLibrary, totalLayers, countLegacyBooks, deleteLegacyBooks } from './library.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12,6 +12,7 @@ onAuthStateChanged(auth, (user) => {
   $('loginRow').style.display = user ? 'none' : 'flex';
   $('seedBtn').disabled = !user;
   $('reloadBtn').disabled = !user;
+  $('countOldBtn').disabled = !user;
   if (user) refresh();
 });
 
@@ -77,3 +78,36 @@ function drawPlan(rooms, bookcases) {
     `</svg>` +
     `<div style="font-size:12px;color:#a8957a">Wohnung ca. ${num(Math.round(maxX * 10) / 10)} m × ${num(Math.round(maxY * 10) / 10)} m (aus der Skizze)</div>`;
 }
+
+// Alte Testdaten: erst zählen, dann zweimal bestätigen
+let oldCount = null, confirmDelete = false;
+$('countOldBtn').addEventListener('click', async () => {
+  $('oldStatus').textContent = 'Zähle …';
+  try {
+    oldCount = await countLegacyBooks();
+    confirmDelete = false;
+    $('oldStatus').textContent = `${oldCount} alte Bücher gefunden.`;
+    $('deleteOldBtn').disabled = oldCount === 0;
+    $('deleteOldBtn').textContent = `Alle ${oldCount} alten Bücher löschen`;
+  } catch (err) {
+    $('oldStatus').textContent = 'Fehler: ' + err.message;
+  }
+});
+$('deleteOldBtn').addEventListener('click', async () => {
+  if (!confirmDelete) {
+    confirmDelete = true;
+    $('deleteOldBtn').textContent = `Wirklich ${oldCount} Bücher löschen? Nochmals klicken`;
+    return;
+  }
+  $('deleteOldBtn').disabled = true;
+  $('oldStatus').textContent = 'Lösche …';
+  try {
+    const n = await deleteLegacyBooks();
+    $('oldStatus').textContent = `Fertig: ${n} alte Bücher gelöscht.`;
+    $('deleteOldBtn').textContent = 'Alte Bücher löschen';
+  } catch (err) {
+    $('oldStatus').textContent = 'Fehler: ' + err.message;
+    $('deleteOldBtn').disabled = false;
+  }
+  confirmDelete = false;
+});

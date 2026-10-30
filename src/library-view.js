@@ -2,9 +2,9 @@
 //   Bibliothek: Gebäude → Ort → Grundriss → Raum → Regal (Vorderansicht, nur ansehen)
 //   Erfassen:   Start → Ort → Grundriss → Raum → Regal (Fächer & Status) → Fach filmen → Ergebnis prüfen
 // Liest den Aufbau aus Firestore (places, rooms, bookcases) über src/library.js.
-// Stand 2026-10-30: Filmen, Analyse und Speichern sind nur eine VORSCHAU (keine Kamera, keine Gemini-Anfrage,
-// kein Firestore-Schreiben). Sie werden nach Fertigstellung der Oberfläche angeschlossen.
-import { loadLibrary, totalLayers } from './library.js';
+// Stand 2026-10-30: Kamera (getUserMedia, https), Bilder während der Aufnahme (live-sweep.js), Gemini-Analyse
+// (analyzeShelfSweep) und Speichern in Firestore (books v: 2, saveFach / insertBook) sind angeschlossen.
+import { loadLibrary, totalLayers, loadShelfBooks, saveFach, insertBook } from './library.js';
 import { analyzeShelfSweep } from './api.js';
 import { startSweepCapture } from './live-sweep.js';
 
@@ -27,33 +27,19 @@ const fachStatus = {};
 
 const KIND_LABEL = { book: 'Buch', film: 'Film', music: 'Musik', other: 'Sonstiges' };
 
-// Gespeicherte Fächer (Vorschau, nur im Speicher): key → [{ title, author, kind }], von links nach rechts.
-// Vorbelegt mit dem von Hand gelesenen Testvideo Arbeitszimmer › Regal 1 › Fach 1.
+// Gespeicherte Fächer aus Firestore (books, v: 2): key → [{ id, title, author, kind, position, … }], von links nach rechts.
 const shelfBooks = {};
-const SAMPLE_FACH = [
-  ['James Bidgood', ''], ['Das Tagebuch der Anne Frank', 'Ari Folman, David Polonsky'], ['Mies – Ein visionärer Architekt', ''],
-  ['Islam und Homosexualität, Teil 3', 'Amin K. Walter'], ['Islam und Homosexualität, Teil 2', 'Amin K. Walter'], ['Islam und Homosexualität, Teil 1', 'Amin K. Walter'],
-  ['Homosexualitäten', ''], ['2000 Jahre Varusschlacht – Konflikt', ''], ['2000 Jahre Varusschlacht – Imperium', ''], ['2000 Jahre Varusschlacht – Mythos', ''],
-  ['Alexandria', 'Günter Grimm'], ['Parthenon', ''], ['Warenwege – Warenflüsse', ''], ['An den Grenzen des Reiches', ''],
-  ['Theater im Römischen Reich', 'Rüdiger Gogräfe'], ['Lexikon der Alten Welt A–G', ''], ['Lexikon der Alten Welt H–Q', ''], ['Lexikon der Alten Welt R–Z', ''],
-  ['Beefcake', ''], ['John F. Kennedy', ''], ['James Dean – Rebell in Hollywood', ''], ['Männer', 'Herlinde Koelbl'], ['Streiflichter', 'Dieter Bachnick'],
-  ['Living Sculpture', ''], ['Robert Mapplethorpe', ''], ['Androgyn', ''], ['Boys', 'Will McBride'], ['Photographies', 'Hervé Guibert'],
-  ['Das magische Auge', 'Herbert List'], ['Das MännerFotoBuch', ''], ['Et in Arcadia Ego', ''], ['Pierre et Gilles', ''], ["L'Amour bleu", ''],
-  ['Kulturgeschichte der Antike 2', ''], ['Alltag im Alten Rom', 'Karl-Wilhelm Weeber'], ['Die römischen Kaiser', 'Chris Scarre'],
-  ['Homosexualität in der griechischen Antike', 'Dover'], ['Götter, Mumien und Hetären', ''], ['Klassische Archäologie – Grundwissen', 'Hölscher'],
-  ['Das Haus des Augustus auf dem Palatin', 'G. Carettoni'], ['Die Sonnenuhr des Augustus', 'Edmund Buchner'], ['Palazzo Altemps', ''],
-  ['Führer durch die Borghese Galerie', ''], ['Palazzo Massimo alle Terme', ''], ['Hermogenes und die hochhellenistische Architektur', ''],
-  ['Kleopatra – Die ewige Diva', ''], ['Caesar & Kleopatra', ''], ['Kleopatra und die Caesaren', ''], ['Rom – Monumente großer Kulturen', ''],
-  ['Wunder Roms', ''], ['Die neuen Bilder des Augustus', ''], ['Kaiser Augustus und die verlorene Republik', ''], ['Roma Antica', ''],
-  ['Roman Sculpture', 'Kleiner'], ['Jerusalem Revealed', ''], ['The Metropolitan Museum of Art Guide', ''], ['Griechische Geschichte', 'Schuller'],
-  ['Rom – Ein archäologischer Führer', 'Filippo Coarelli'], ['Das Neue Testament', ''], ['Holy Bible', ''], ['Das Buch Mormon', ''],
-  ['Zitate und Sprichwörter von A–Z', ''], ['Daten der deutschen Geschichte', 'Gerhard Hellwig'], ['Grundgesetz', ''],
-  ['Griechische Schriftsteller', 'Rainer Nickel'], ['Die blödesten Gesetze der Welt', 'Roman Leuthner, Alexandra Leuthner'], ['Deutsche Verfassungen', ''],
-  ['Das große Lexikon der Geschichte 1', ''], ['Das große Lexikon der Geschichte 2', ''], ['Das große Lexikon der Geschichte 3', '']
-].map(([title, author]) => ({ title, author, kind: 'book' }));
-shelfBooks['arbeitszimmer-1:0:1'] = SAMPLE_FACH;
-fachStatus['arbeitszimmer-1:0:1'] = { status: 'saved', items: SAMPLE_FACH };
 
+async function refreshShelfBooks() {
+  const byFach = await loadShelfBooks();
+  Object.keys(shelfBooks).forEach(k => delete shelfBooks[k]);
+  Object.assign(shelfBooks, byFach);
+  // Status der Fächer abgleichen (laufende Analysen und offene Prüfungen bleiben)
+  Object.keys(fachStatus).forEach(k => { if (fachStatus[k].status === 'saved' && !shelfBooks[k]) delete fachStatus[k]; });
+  Object.entries(shelfBooks).forEach(([k, items]) => {
+    if (!fachStatus[k] || fachStatus[k].status === 'saved') fachStatus[k] = { status: 'saved', items };
+  });
+}
 const SPINE_COLORS = ['#4f5e45', '#6e3428', '#2c445b', '#7d5f28', '#5c5852', '#463756', '#7a4e33', '#3a5853'];
 
 // ---------------------------------------------------------------- Kamera (Live-Vorschau im Filmen-Bildschirm)
@@ -114,12 +100,16 @@ async function openView(rootId, { reset = true } = {}) {
     try {
       loading = loading || loadLibrary();
       lib = await loading;
+      await refreshShelfBooks();
     } catch (err) {
       console.error('[BookFinder Bibliothek]', err);
       el.innerHTML = `<div class="card lib-card"><p class="lib-muted">Laden fehlgeschlagen: ${esc(err.message)}</p></div>`;
       loading = null;
       return;
     }
+  }
+  else if (reset) {
+    try { await refreshShelfBooks(); } catch (err) { console.error('[BookFinder Bücher laden]', err); }
   }
   render(rootId);
 }
@@ -147,16 +137,7 @@ function onClick(rootId, e) {
       Object.assign(st, { section: sec, fach, screen: 'insert' });
       break;
     }
-    case 'insert-at': {
-      const k = key(st.bookcaseId, st.section, st.fach);
-      const list = shelfBooks[k] || (shelfBooks[k] = []);
-      const idx = Number(id);
-      list.splice(idx, 0, { ...st.adding });
-      fachStatus[k] = { status: 'saved', items: list };
-      st.lastInsert = { k, idx, shifted: list.length - 1 - idx };
-      Object.assign(st, { adding: null, screen: 'inserted', draft: { title: '', author: '', kind: 'book' } });
-      break;
-    }
+    case 'insert-at': insertHere(rootId, Number(id), btn); return;
     case 'cancel-add': Object.assign(st, { adding: null, screen: 'start' }); break;
     case 'done': Object.assign(st, { screen: 'start', lastInsert: null }); break;
     case 'search': Object.assign(st, { screen: 'search', hl: null }); break;
@@ -199,19 +180,17 @@ function onClick(rootId, e) {
     case 'dir': st.direction = id; break;
     case 'rec-start': startRecording(rootId); return;
     case 'rec-stop': stopRecording(rootId); return;
+    case 'reverse': {
+      const s = fachStatus[key(st.bookcaseId, st.section, st.fach)];
+      s?.items.reverse();
+      break;
+    }
     case 'del': {
       const s = fachStatus[key(st.bookcaseId, st.section, st.fach)];
       s?.items.splice(Number(id), 1);
       break;
     }
-    case 'save': {
-      const k = key(st.bookcaseId, st.section, st.fach);
-      const s = fachStatus[k];
-      if (s) { shelfBooks[k] = s.items.filter(x => (x.title || '').trim()); s.status = 'saved'; s.items = shelfBooks[k]; }
-      st.screen = 'case';
-      toast(rootId, `Fach ${st.fach} gespeichert (Vorschau – noch nicht in der Datenbank).`);
-      break;
-    }
+    case 'save': saveReviewed(rootId, btn); return;
     case 'discard': {
       delete fachStatus[key(st.bookcaseId, st.section, st.fach)];
       st.screen = 'case';
@@ -310,6 +289,52 @@ async function stopRecording(rootId) {
     fachStatus[k] = { status: 'error', items: [], msg: err?.message || String(err) };
   }
   refresh();
+}
+
+function whereOf(st) {
+  const b = bookcase(st);
+  return { placeId: b.placeId, roomId: b.roomId, bookcaseId: b.id, section: st.section, fach: st.fach };
+}
+
+async function saveReviewed(rootId, btn) {
+  const st = views[rootId].state;
+  const k = key(st.bookcaseId, st.section, st.fach);
+  const s = fachStatus[k];
+  if (!s) return;
+  btn.disabled = true;
+  btn.textContent = 'Speichert …';
+  try {
+    const list = await saveFach(whereOf(st), s.items, 'video');
+    shelfBooks[k] = list;
+    fachStatus[k] = { status: 'saved', items: list };
+    st.screen = 'case';
+    render(rootId);
+    toast(rootId, `Fach ${st.fach}: ${list.length} Bücher gespeichert.`);
+  } catch (err) {
+    console.error('[BookFinder Speichern]', err);
+    btn.disabled = false;
+    btn.textContent = 'Speichern';
+    toast(rootId, 'Speichern fehlgeschlagen: ' + (err?.message || err));
+  }
+}
+
+async function insertHere(rootId, idx, btn) {
+  const st = views[rootId].state;
+  const k = key(st.bookcaseId, st.section, st.fach);
+  btn.disabled = true;
+  btn.textContent = 'Speichert …';
+  try {
+    const list = await insertBook(whereOf(st), idx, st.adding);
+    shelfBooks[k] = list;
+    if (!fachStatus[k] || fachStatus[k].status === 'saved') fachStatus[k] = { status: 'saved', items: list };
+    st.lastInsert = { k, idx, shifted: list.length - 1 - idx };
+    Object.assign(st, { adding: null, screen: 'inserted', draft: { title: '', author: '', kind: 'book' } });
+    render(rootId);
+  } catch (err) {
+    console.error('[BookFinder Einfügen]', err);
+    btn.disabled = false;
+    toast(rootId, 'Einfügen fehlgeschlagen: ' + (err?.message || err));
+  }
 }
 
 function toast(rootId, text) {
@@ -581,7 +606,7 @@ function renderSearch(st, rootId) {
     <label class="lib-sr" for="${rootId}-q">Titel oder Autor</label>
     <input id="${rootId}-q" type="search" class="lib-input lib-search-input" placeholder="Titel oder Autor" value="${esc(st.query)}" autocomplete="off">
     <div id="${rootId}-results" class="lib-books">${renderResults(st.query)}</div>
-    <p class="lib-muted lib-small">Vorschau: durchsucht die Beispieldaten und die in „Erfassen“ gespeicherten Fächer.</p>`;
+`;
 }
 
 const STATUS = {
@@ -670,6 +695,7 @@ function renderReview(st) {
     </div>`).join('');
   return header(st, `${fachName(b, st.section, st.fach)} prüfen`, `${b.name} · ${room(st)?.name || ''}`) + `
     <p class="lib-info">${s.items.length} Einträge · ${unsure} unsicher · von links nach rechts · ${s.meta ? `${s.meta.frames} Bilder · ${s.meta.rec} s Aufnahme · Gemini ${s.meta.seconds} s` : ''}</p>
+    <button type="button" class="set-add" data-act="reverse">↔ Reihenfolge umdrehen (falls 1 nicht ganz links ist)</button>
     <div class="lib-items">${rows}</div>
     <div class="lib-actions">
       <button type="button" class="btn btn-secondary" data-act="discard">Verwerfen</button>
@@ -731,5 +757,5 @@ function renderInserted(st) {
       <button type="button" class="btn btn-secondary" data-act="done">Fertig</button>
       <button type="button" class="btn lib-primary" data-act="add-book">Weiteres Buch</button>
     </div>
-    <p class="lib-muted lib-small">Vorschau: Änderung nur im Speicher, noch nicht in der Datenbank.</p>`;
+`;
 }

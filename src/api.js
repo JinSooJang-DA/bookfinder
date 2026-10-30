@@ -313,7 +313,8 @@ export async function analyzeShelfSweep(frameBase64List, { direction = 'rtl', th
   const prompt = [
     `These ${n} photos are consecutive frames from a video that sweeps along ONE shelf of a bookcase, ${dirText}.`,
     'Neighbouring frames overlap heavily, so the same item appears in several frames. Count every item only once.',
-    'Return ONE list of all items standing or lying on THIS shelf, ordered from the LEFT end of the shelf to the RIGHT end.',
+    'Return ONE list of all items standing or lying on THIS shelf, in the order in which they appear in the video:',
+    'start with the items seen in Frame 1 and end with the items seen in the last frame. Do not reorder or reverse the list.',
     'Read title and author exactly as printed on the spine, in the original language. Do not translate.',
     'kind: "book" for books, "film" for DVD/Blu-ray/video, "music" for CDs/records, "other" for other titled media.',
     'Ignore toys, model cars, figures, photos, papers, decorations, boxes without a title, ring binders/file folders and stamp or photo albums.',
@@ -331,7 +332,10 @@ export async function analyzeShelfSweep(frameBase64List, { direction = 'rtl', th
     const startedAt = performance.now();
     try {
       const { text } = await requestBookList(model, parts, null, SWEEP_SCHEMA, extraConfig);
-      return { books: JSON.parse(text), model, seconds: (performance.now() - startedAt) / 1000 };
+      // Gemini liefert die Aufnahme-Reihenfolge; hier in Links→Rechts umwandeln (Position 1 = ganz links).
+      const inSweepOrder = JSON.parse(text);
+      const books = direction === 'rtl' ? inSweepOrder.reverse() : inSweepOrder;
+      return { books, model, seconds: (performance.now() - startedAt) / 1000 };
     } catch (err) {
       console.info(`[BookFinder Sweep] ${model}: failed (${err.status ?? '?'})`);
       if (!err.busy || i === GEMINI_MODELS.length - 1) throw err;
