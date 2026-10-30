@@ -199,3 +199,45 @@
   .lib-shelf.is-hl, .lib-room-books.is-hl { animation: lib-pulse 1.4s ease-in-out infinite; }
 }
 @keyframes lib-pulse { 50% { box-shadow: 0 0 0 6px rgba(240,210,122,0.25); } }
+
+/* ---- Einstellungen ---- */
+.mode-settings .lib-title { color: #c9b8e8; }
+.set-choice { color: #c9b8e8; border-color: rgba(201,184,232,0.6); background: rgba(201,184,232,0.06); }
+.set-place { margin: 6px 0 0; font-family: 'Cormorant Garamond', 'Gowun Batang', serif; font-size: 1.3rem; color: #d4af37; }
+.set-room { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid #4a3a2f; border-radius: 12px; }
+.set-room.is-off { opacity: 0.75; }
+.set-room-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.set-room-name { font-weight: 700; }
+.set-switch, .set-check { display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 0.85rem; color: #c1a88a; margin: 0; min-height: 44px; }
+.set-switch input, .set-check input { width: 22px; height: 22px; margin: 0; accent-color: #d4af37; }
+.set-add { min-height: 44px; background: transparent; color: #d4af37; border: 1px dashed rgba(212,175,55,0.6); border-radius: 10px; cursor: pointer; }
+.set-form { display: flex; flex-direction: column; gap: 8px; }
+.set-form label { margin: 0; font-size: 0.85rem; }
+.set-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.set-fieldset { border: 1px solid #4a3a2f; border-radius: 12px; padding: 10px; margin: 4px 0; display: flex; flex-direction: column; gap: 8px; }
+.set-fieldset legend { padding: 0 6px; font-size: 0.85rem; color: #d4af37; }
+.set-sec { display: flex; align-items: center; gap: 10px; }
+.set-sec label { flex: 0 0 90px; }
+.set-num { width: 80px; flex: 0 0 80px; }
+.set-plan { cursor: crosshair; }
+.set-other { opacity: 0.45; }
+.set-current { background: #f0d27a; border: 2px solid #fff3c4; box-shadow: 0 0 0 3px rgba(240,210,122,0.4); }
+.set-delete { min-height: 44px; background: transparent; color: #e07a6f; border: 1px solid rgba(224,122,111,0.6); border-radius: 10px; cursor: pointer; }
+.set-delete.is-confirm { background: #d9534f; color: #fff; border-color: #d9534f; font-weight: 700; }
+.set-msg { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(201,184,232,0.12); color: #e4dcf3; font-size: 0.9rem; }
+
+/* ---- Einzelnes Buch hinzufügen ---- */
+.mode-capture select.lib-input { min-height: 44px; }
+.lib-adding {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px;
+  background: rgba(143,194,138,0.14); border: 1px solid rgba(143,194,138,0.6); color: #e8f3e6; font-size: 0.9rem;
+}
+.lib-adding-x { min-height: 36px; background: transparent; color: #b7e0b2; border: 1px solid rgba(143,194,138,0.6); border-radius: 8px; cursor: pointer; flex: 0 0 auto; }
+.lib-slot {
+  min-height: 40px; width: 100%; background: transparent; color: #8fc28a; border: 1px dashed rgba(143,194,138,0.6);
+  border-radius: 10px; font-size: 0.8rem; cursor: pointer;
+}
+.lib-book-static { cursor: default; }
+.lib-book.is-moved { border-color: rgba(143,194,138,0.5); }
+.lib-moved { margin-left: auto; font-size: 0.7rem; color: #8fc28a; white-space: nowrap; }
+.lib-kind-new { background: #f0d27a; }

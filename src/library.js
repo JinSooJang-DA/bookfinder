@@ -4,7 +4,7 @@
 //   rooms/{id}     { placeId, name, order, hasBooks, plan: {x,y,w,h} in Metern }
 //   bookcases/{id} { placeId, roomId, name, order, widthM, heightM, plan, sections: [{ layers }], note?, baseCabinet? }
 // Fach 1 ist immer das oberste Fach eines Abschnitts.
-import { collection, doc, getDocs, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { SEED_PLACES, SEED_ROOMS, SEED_BOOKCASES } from './library-seed.js';
 
@@ -38,4 +38,17 @@ export async function seedLibrary({ overwrite = false } = {}) {
 
 export function totalLayers(bookcase) {
   return (bookcase.sections || []).reduce((sum, s) => sum + (s.layers || 0), 0);
+}
+
+// Regal anlegen oder ändern (ganzes Dokument). Bücher in "books" werden nicht verändert.
+export async function saveBookcase({ id, ...data }) {
+  await setDoc(doc(db, 'bookcases', id), { ...data, updatedAt: serverTimestamp() });
+}
+
+export async function deleteBookcase(id) {
+  await deleteDoc(doc(db, 'bookcases', id));
+}
+
+export async function saveRoom({ id, ...data }) {
+  await setDoc(doc(db, 'rooms', id), { ...data, updatedAt: serverTimestamp() });
 }

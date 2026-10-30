@@ -52,7 +52,7 @@
         </div>
 
         <!-- 4. 설정 및 삭제 (구 사이트 관리) -->
-        <div class="menu-book" onclick="handleBookClick(this, 'manageView')">
+        <div class="menu-book" onclick="handleBookClick(this, 'settingsView')">
           <div class="book-spine"><span id="spineManageTitle">Setup & Delete</span></div>
           <div class="book-cover">
             <span id="menuManageTitle">Setup & Delete</span>
@@ -72,6 +72,8 @@
     <div id="libraryView" class="sub-view" style="display: none;"></div>
     <!-- Erfassen: gleicher Grundriss, Fach filmen → prüfen (src/library-view.js, Vorschau) -->
     <div id="captureView" class="sub-view" style="display: none;"></div>
+    <!-- Einstellungen: Räume & Regale bearbeiten (src/settings-view.js) -->
+    <div id="settingsView" class="sub-view" style="display: none;"></div>
 
     <!-- 💡 Book Input Hub (도서 입력 서브메뉴 선택 센터) -->
     <div id="bookInputHubView" class="sub-view" style="display: none;">

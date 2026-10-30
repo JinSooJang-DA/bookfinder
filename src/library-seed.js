@@ -50,5 +50,8 @@ export const SEED_BOOKCASES = [
     plan: plan(788, 1208, 848, 1610), sections: [{ layers: 5 }] },
   { id: 'schlafzimmer-2', placeId: 'wohnung', roomId: 'wohnung-schlafzimmer', name: 'Regal 2', order: 2, widthM: null, heightM: null,
     plan: plan(788, 1610, 1335, 1688), note: 'ganze Wand · Bretter über Unterschränken', baseCabinet: true,
-    sections: [{ layers: 3 }, { layers: 5 }, { layers: 5 }, { layers: 5 }, { layers: 4 }] }
+    sections: [{ layers: 3 }, { layers: 5 }, { layers: 5 }, { layers: 5 }, { layers: 4 }] },
+  // unter Abschnitt 1 (3 Fächer, an der Decke) von Regal 2 — Abschnitt 1 liegt im Grundriss am rechten Ende der Wand
+  { id: 'schlafzimmer-3', placeId: 'wohnung', roomId: 'wohnung-schlafzimmer', name: 'Regal 3', order: 3, widthM: 1.0, heightM: 1.0,
+    plan: plan(1201, 1610, 1335, 1660), sections: [{ layers: 3 }], note: 'unter Abschnitt 1 von Regal 2' }
 ];

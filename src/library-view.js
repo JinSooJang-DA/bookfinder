@@ -65,12 +65,15 @@ fachStatus['arbeitszimmer-1:0:1'] = { status: 'saved', items: SAMPLE_FACH };
 
 const SPINE_COLORS = ['#4f5e45', '#6e3428', '#2c445b', '#7d5f28', '#5c5852', '#463756', '#7a4e33', '#3a5853'];
 
+// Nach Änderungen in den Einstellungen neu aus Firestore laden
+export function invalidateLibrary() { lib = null; loading = null; }
+
 export function openLibraryView() { return openView('libraryView'); }
 export function openCaptureView() { return openView('captureView'); }
 
 async function openView(rootId, { reset = true } = {}) {
   const v = views[rootId];
-  if (reset) v.state = { screen: 'start', placeId: null, roomId: null, bookcaseId: null, section: 0, fach: null, direction: 'rtl', recording: false, query: '', book: null, hl: null };
+  if (reset) v.state = { screen: 'start', placeId: null, roomId: null, bookcaseId: null, section: 0, fach: null, direction: 'rtl', recording: false, query: '', book: null, hl: null, adding: null, draft: { title: '', author: '', kind: 'book' }, lastInsert: null, formMsg: '' };
   const el = document.getElementById(rootId);
   if (!el) return;
   if (!el.dataset.bound) {
@@ -103,6 +106,31 @@ function onClick(rootId, e) {
     case 'enter': st.screen = 'places'; break;
     case 'film-shelf': st.screen = 'places'; break;
     case 'barcode': window.switchView('barcodeView'); return;
+    case 'add-book': Object.assign(st, { screen: 'addbook', adding: null, lastInsert: null, formMsg: '', draft: { title: '', author: '', kind: 'book' } }); break;
+    case 'add-next': {
+      if (!st.draft.title.trim()) { st.formMsg = 'Bitte einen Titel eingeben.'; break; }
+      st.adding = { title: st.draft.title.trim(), author: st.draft.author.trim(), kind: st.draft.kind };
+      st.formMsg = '';
+      st.screen = 'places';
+      break;
+    }
+    case 'pick-fach': {
+      const [sec, fach] = id.split(':').map(Number);
+      Object.assign(st, { section: sec, fach, screen: 'insert' });
+      break;
+    }
+    case 'insert-at': {
+      const k = key(st.bookcaseId, st.section, st.fach);
+      const list = shelfBooks[k] || (shelfBooks[k] = []);
+      const idx = Number(id);
+      list.splice(idx, 0, { ...st.adding });
+      fachStatus[k] = { status: 'saved', items: list };
+      st.lastInsert = { k, idx, shifted: list.length - 1 - idx };
+      Object.assign(st, { adding: null, screen: 'inserted', draft: { title: '', author: '', kind: 'book' } });
+      break;
+    }
+    case 'cancel-add': Object.assign(st, { adding: null, screen: 'start' }); break;
+    case 'done': Object.assign(st, { screen: 'start', lastInsert: null }); break;
     case 'search': Object.assign(st, { screen: 'search', hl: null }); break;
     case 'open-fach': {
       const [sec, fach] = id.split(':').map(Number);
@@ -151,7 +179,7 @@ function onClick(rootId, e) {
     case 'save': {
       const k = key(st.bookcaseId, st.section, st.fach);
       const s = fachStatus[k];
-      if (s) { s.status = 'saved'; shelfBooks[k] = s.items.filter(x => (x.title || '').trim()); }
+      if (s) { shelfBooks[k] = s.items.filter(x => (x.title || '').trim()); s.status = 'saved'; s.items = shelfBooks[k]; }
       st.screen = 'case';
       toast(rootId, `Fach ${st.fach} gespeichert (Vorschau – noch nicht in der Datenbank).`);
       break;
@@ -174,6 +202,8 @@ function onInput(rootId, e) {
     if (out) out.innerHTML = renderResults(views[rootId].state.query);
     return;
   }
+  const d = e.target.closest('[data-draft]');
+  if (d) { views[rootId].state.draft[d.dataset.draft] = d.value; return; }
   const f = e.target.closest('[data-field]');
   if (!f) return;
   const st = views[rootId].state;
@@ -186,7 +216,9 @@ function onInput(rootId, e) {
 
 function goBack(st) {
   if (st.book) { st.book = null; return; }
-  if (st.screen === 'search') { st.screen = 'start'; return; }
+  if (st.screen === 'search' || st.screen === 'addbook' || st.screen === 'inserted') { st.screen = 'start'; st.adding = null; return; }
+  if (st.screen === 'insert') { st.screen = 'case'; return; }
+  if (st.screen === 'places' && st.adding) { st.screen = 'addbook'; return; }
   if (st.screen === 'fach') { st.screen = 'case'; return; }
   if (st.screen === 'film' || st.screen === 'review') { st.recording = false; st.screen = 'case'; }
   else if (st.screen === 'case') Object.assign(st, { screen: 'room', bookcaseId: null });
@@ -287,12 +319,19 @@ function render(rootId) {
   else if (st.screen === 'places') html = renderPlaces(st, cap);
   else if (st.screen === 'place') html = renderPlace(st, cap);
   else if (st.screen === 'room') html = renderRoom(st, cap);
-  else if (st.screen === 'case') html = cap ? renderCaptureCase(st) : renderCase(st);
+  else if (st.screen === 'case') html = cap ? (st.adding ? renderPickFach(st) : renderCaptureCase(st)) : renderCase(st);
+  else if (st.screen === 'addbook') html = renderAddBook(st);
+  else if (st.screen === 'insert') html = renderInsert(st);
+  else if (st.screen === 'inserted') html = renderInserted(st);
   else if (st.screen === 'film') html = renderFilm(st, rootId);
   else if (st.screen === 'review') html = renderReview(st);
   else if (st.screen === 'fach') html = renderFach(st);
   else if (st.screen === 'search') html = renderSearch(st, rootId);
+  if (st.adding && ['places', 'place', 'room', 'case', 'insert'].includes(st.screen)) {
+    html = `<div class="lib-adding" role="status">Platz wählen für <b>„${esc(st.adding.title)}“</b><button type="button" class="lib-adding-x" data-act="cancel-add">Abbrechen</button></div>` + html;
+  }
   if (st.book) html += renderBookSheet(st);
+  if (st.screen === 'addbook') setTimeout(() => document.getElementById(`${rootId}-title`)?.focus(), 0);
   el.innerHTML = `<div class="card lib-card${cap ? ' mode-capture' : ''}">${html}</div>`;
   if (st.screen === 'search' && !st.book) document.getElementById(`${rootId}-q`)?.focus();
   el.querySelector('.is-hl-book')?.scrollIntoView({ block: 'center' });
@@ -320,6 +359,10 @@ function renderCaptureStart(st) {
     <button type="button" class="lib-choice" data-act="film-shelf">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"></rect><path d="M16 10l6-3v10l-6-3z"></path></svg>
       <span><span class="lib-choice-title">Regal filmen</span><span class="lib-muted">Regal wählen, Fach für Fach abfilmen, Ergebnis prüfen</span></span>
+    </button>
+    <button type="button" class="lib-choice" data-act="add-book">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h10a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"></path><path d="M19 8v6M16 11h6"></path></svg>
+      <span><span class="lib-choice-title">Einzelnes Buch hinzufügen</span><span class="lib-muted">Titel eingeben und genau an seinen Platz im Fach stellen</span></span>
     </button>
     <button type="button" class="lib-choice" data-act="barcode">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 5v14M7 5v14M10 5v14M14 5v14M16 5v14M20 5v14"></path></svg>
@@ -562,4 +605,61 @@ function renderReview(st) {
       <button type="button" class="btn btn-secondary" data-act="discard">Verwerfen</button>
       <button type="button" class="btn lib-primary" data-act="save">Speichern</button>
     </div>`;
+}
+
+// ---------------------------------------------------------------- Einzelnes Buch hinzufügen
+function renderAddBook(st) {
+  const d = st.draft;
+  const kinds = Object.entries(KIND_LABEL).map(([v, l]) => `<option value="${v}"${d.kind === v ? ' selected' : ''}>${l}</option>`).join('');
+  return header(st, 'Buch hinzufügen', 'Erfassen') + `
+    <div class="set-form">
+      <label for="captureView-title">Titel *</label>
+      <input id="captureView-title" type="text" class="lib-input" data-draft="title" value="${esc(d.title)}" autocomplete="off">
+      <label for="captureView-author">Autor</label>
+      <input id="captureView-author" type="text" class="lib-input" data-draft="author" value="${esc(d.author)}" autocomplete="off">
+      <label for="captureView-kind">Art</label>
+      <select id="captureView-kind" class="lib-input" data-draft="kind">${kinds}</select>
+    </div>
+    ${st.formMsg ? `<p class="set-msg" role="alert">${esc(st.formMsg)}</p>` : ''}
+    <button type="button" class="btn lib-primary" data-act="add-next">Weiter: Platz wählen</button>`;
+}
+
+function renderPickFach(st) {
+  const b = bookcase(st);
+  const rows = allFächer(b).map(({ sec, fach }) => {
+    const n = shelfBooks[key(b.id, sec, fach)]?.length || 0;
+    return `<div class="lib-fach lib-fach-cap"><span class="lib-fach-label">${esc(fachName(b, sec, fach))}${fach === 1 ? ' (oben)' : ''}</span><span class="lib-status">${n ? `${n} Bücher` : 'leer'}</span><button type="button" class="lib-film" data-act="pick-fach" data-id="${sec}:${fach}">Hier</button></div>`;
+  }).join('');
+  return header(st, b.name, `Fach wählen · ${room(st)?.name || ''}`) + `<div class="lib-front">${rows}</div>`;
+}
+
+function renderInsert(st) {
+  const b = bookcase(st);
+  const k = key(b.id, st.section, st.fach);
+  const items = shelfBooks[k] || [];
+  const slot = (i) => `<button type="button" class="lib-slot" data-act="insert-at" data-id="${i}">＋ hier einfügen (${i + 1}. von links)</button>`;
+  const rows = items.map((it, i) => `${slot(i)}
+    <div class="lib-book lib-book-static"><span class="lib-book-pos">${i + 1}</span><span class="lib-book-text"><span class="lib-book-title">${esc(it.title)}</span>${it.author ? `<span class="lib-muted">${esc(it.author)}</span>` : ''}</span></div>`).join('');
+  return header(st, `${fachName(b, st.section, st.fach)}: Platz wählen`, `${room(st)?.name || ''} › ${b.name}`) + `
+    <p class="lib-info">Zwischen den richtigen Büchern antippen. Die Bücher rechts davon rücken eine Position weiter.</p>
+    <div class="lib-books">${rows}${slot(items.length)}</div>`;
+}
+
+function renderInserted(st) {
+  const { k, idx, shifted } = st.lastInsert;
+  const items = shelfBooks[k] || [];
+  const it = items[idx];
+  const rows = items.map((x, i) => {
+    const cls = i === idx ? ' is-hl' : (i > idx ? ' is-moved' : '');
+    const note = i === idx ? '<span class="lib-kind lib-kind-new">neu</span>' : (i > idx ? `<span class="lib-moved">war ${i}. → jetzt ${i + 1}.</span>` : '');
+    return `<div class="lib-book lib-book-static${cls}"><span class="lib-book-pos">${i + 1}</span><span class="lib-book-text"><span class="lib-book-title">${esc(x.title)}</span>${x.author ? `<span class="lib-muted">${esc(x.author)}</span>` : ''}</span>${note}</div>`;
+  }).join('');
+  return header(st, 'Buch eingefügt', 'Erfassen') + `
+    <p class="set-msg" role="status"><b>„${esc(it.title)}“</b> steht jetzt in ${esc(whereText(k, idx))}.<br>${shifted ? `${shifted} Bücher rechts davon haben eine neue Position.` : 'Keine anderen Bücher wurden verschoben.'}</p>
+    <div class="lib-books">${rows}</div>
+    <div class="lib-actions">
+      <button type="button" class="btn btn-secondary" data-act="done">Fertig</button>
+      <button type="button" class="btn lib-primary" data-act="add-book">Weiteres Buch</button>
+    </div>
+    <p class="lib-muted lib-small">Vorschau: Änderung nur im Speicher, noch nicht in der Datenbank.</p>`;
 }
