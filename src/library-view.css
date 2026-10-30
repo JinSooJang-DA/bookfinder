@@ -162,3 +162,40 @@
 .lib-actions { display: flex; gap: 10px; }
 .lib-actions .btn { flex: 1; min-height: 48px; margin: 0; }
 .lib-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- Bibliothek: Bücher, Suche, Hervorhebung ---- */
+.lib-fach-books { width: 100%; flex-direction: column; align-items: stretch; gap: 6px; background: transparent; border-left: 0; border-right: 0; border-top: 0; color: inherit; cursor: pointer; text-align: left; min-height: 96px; }
+.lib-fach-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lib-spines { display: flex; align-items: flex-end; gap: 1px; height: 52px; overflow: hidden; }
+.lib-spine { flex: 0 0 auto; border-radius: 2px 2px 0 0; border: 1px solid rgba(0,0,0,0.35); }
+.lib-sec-fach { width: 100%; background: transparent; border-left: 0; border-right: 0; border-top: 0; color: #8c6b4a; cursor: pointer; flex-direction: column; gap: 2px; padding: 0; }
+.lib-sec-fach.has-books { color: #e9c97a; }
+.lib-sec-fach b { font-size: 0.8rem; }
+.lib-books { display: flex; flex-direction: column; gap: 6px; }
+.lib-book {
+  display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; text-align: left; width: 100%;
+  background: rgba(212,175,55,0.05); border: 1px solid rgba(212,175,55,0.25); border-radius: 12px; color: #e8dcc4; cursor: pointer;
+}
+.lib-book-pos { flex: 0 0 26px; text-align: right; font-size: 0.8rem; color: #a8957a; }
+.lib-book-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lib-book-title { font-weight: 500; }
+.lib-kind { margin-left: auto; font-size: 0.7rem; color: #1a1412; background: #c1a88a; border-radius: 6px; padding: 1px 6px; }
+.lib-where, .lib-where-small { display: flex; align-items: center; gap: 6px; color: #e9c97a; }
+.lib-where { font-size: 0.9rem; }
+.lib-where-small { font-size: 0.75rem; }
+.lib-search-input { min-height: 48px; font-size: 1rem; }
+.lib-small { font-size: 0.75rem; margin: 0; }
+.lib-gold { min-height: 48px; background: #d4af37; color: #1a1412; border: none; font-weight: 700; }
+.lib-sheet-bg { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; justify-content: center; }
+.lib-sheet {
+  width: 100%; max-width: 500px; box-sizing: border-box; padding: 22px 20px 28px; display: flex; flex-direction: column; gap: 10px;
+  background: #2a201a; border-top: 1px solid rgba(212,175,55,0.5); border-radius: 22px 22px 0 0;
+}
+.lib-sheet-title { font-family: 'Cormorant Garamond', 'Gowun Batang', serif; font-size: 1.6rem; font-weight: 700; color: #e8dcc4; line-height: 1.15; }
+.lib-hl-note { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(233,201,122,0.12); color: #e9c97a; font-size: 0.85rem; }
+.lib-room-books.is-hl, .lib-row.is-hl, .lib-fach.is-hl, .lib-book.is-hl { outline: 3px solid #f0d27a; outline-offset: -3px; background: rgba(240,210,122,0.18); }
+.lib-shelf.is-hl { background: #f0d27a; border-color: #fff3c4; box-shadow: 0 0 0 3px rgba(240,210,122,0.5); }
+@media (prefers-reduced-motion: no-preference) {
+  .lib-shelf.is-hl, .lib-room-books.is-hl { animation: lib-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes lib-pulse { 50% { box-shadow: 0 0 0 6px rgba(240,210,122,0.25); } }

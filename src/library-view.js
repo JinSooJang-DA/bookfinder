@@ -36,12 +36,41 @@ const PREVIEW_ITEMS = [
 ];
 const KIND_LABEL = { book: 'Buch', film: 'Film', music: 'Musik', other: 'Sonstiges' };
 
+// Gespeicherte Fächer (Vorschau, nur im Speicher): key → [{ title, author, kind }], von links nach rechts.
+// Vorbelegt mit dem von Hand gelesenen Testvideo Arbeitszimmer › Regal 1 › Fach 1.
+const shelfBooks = {};
+const SAMPLE_FACH = [
+  ['James Bidgood', ''], ['Das Tagebuch der Anne Frank', 'Ari Folman, David Polonsky'], ['Mies – Ein visionärer Architekt', ''],
+  ['Islam und Homosexualität, Teil 3', 'Amin K. Walter'], ['Islam und Homosexualität, Teil 2', 'Amin K. Walter'], ['Islam und Homosexualität, Teil 1', 'Amin K. Walter'],
+  ['Homosexualitäten', ''], ['2000 Jahre Varusschlacht – Konflikt', ''], ['2000 Jahre Varusschlacht – Imperium', ''], ['2000 Jahre Varusschlacht – Mythos', ''],
+  ['Alexandria', 'Günter Grimm'], ['Parthenon', ''], ['Warenwege – Warenflüsse', ''], ['An den Grenzen des Reiches', ''],
+  ['Theater im Römischen Reich', 'Rüdiger Gogräfe'], ['Lexikon der Alten Welt A–G', ''], ['Lexikon der Alten Welt H–Q', ''], ['Lexikon der Alten Welt R–Z', ''],
+  ['Beefcake', ''], ['John F. Kennedy', ''], ['James Dean – Rebell in Hollywood', ''], ['Männer', 'Herlinde Koelbl'], ['Streiflichter', 'Dieter Bachnick'],
+  ['Living Sculpture', ''], ['Robert Mapplethorpe', ''], ['Androgyn', ''], ['Boys', 'Will McBride'], ['Photographies', 'Hervé Guibert'],
+  ['Das magische Auge', 'Herbert List'], ['Das MännerFotoBuch', ''], ['Et in Arcadia Ego', ''], ['Pierre et Gilles', ''], ["L'Amour bleu", ''],
+  ['Kulturgeschichte der Antike 2', ''], ['Alltag im Alten Rom', 'Karl-Wilhelm Weeber'], ['Die römischen Kaiser', 'Chris Scarre'],
+  ['Homosexualität in der griechischen Antike', 'Dover'], ['Götter, Mumien und Hetären', ''], ['Klassische Archäologie – Grundwissen', 'Hölscher'],
+  ['Das Haus des Augustus auf dem Palatin', 'G. Carettoni'], ['Die Sonnenuhr des Augustus', 'Edmund Buchner'], ['Palazzo Altemps', ''],
+  ['Führer durch die Borghese Galerie', ''], ['Palazzo Massimo alle Terme', ''], ['Hermogenes und die hochhellenistische Architektur', ''],
+  ['Kleopatra – Die ewige Diva', ''], ['Caesar & Kleopatra', ''], ['Kleopatra und die Caesaren', ''], ['Rom – Monumente großer Kulturen', ''],
+  ['Wunder Roms', ''], ['Die neuen Bilder des Augustus', ''], ['Kaiser Augustus und die verlorene Republik', ''], ['Roma Antica', ''],
+  ['Roman Sculpture', 'Kleiner'], ['Jerusalem Revealed', ''], ['The Metropolitan Museum of Art Guide', ''], ['Griechische Geschichte', 'Schuller'],
+  ['Rom – Ein archäologischer Führer', 'Filippo Coarelli'], ['Das Neue Testament', ''], ['Holy Bible', ''], ['Das Buch Mormon', ''],
+  ['Zitate und Sprichwörter von A–Z', ''], ['Daten der deutschen Geschichte', 'Gerhard Hellwig'], ['Grundgesetz', ''],
+  ['Griechische Schriftsteller', 'Rainer Nickel'], ['Die blödesten Gesetze der Welt', 'Roman Leuthner, Alexandra Leuthner'], ['Deutsche Verfassungen', ''],
+  ['Das große Lexikon der Geschichte 1', ''], ['Das große Lexikon der Geschichte 2', ''], ['Das große Lexikon der Geschichte 3', '']
+].map(([title, author]) => ({ title, author, kind: 'book' }));
+shelfBooks['arbeitszimmer-1:0:1'] = SAMPLE_FACH;
+fachStatus['arbeitszimmer-1:0:1'] = { status: 'saved', items: SAMPLE_FACH };
+
+const SPINE_COLORS = ['#4f5e45', '#6e3428', '#2c445b', '#7d5f28', '#5c5852', '#463756', '#7a4e33', '#3a5853'];
+
 export function openLibraryView() { return openView('libraryView'); }
 export function openCaptureView() { return openView('captureView'); }
 
 async function openView(rootId, { reset = true } = {}) {
   const v = views[rootId];
-  if (reset) v.state = { screen: 'start', placeId: null, roomId: null, bookcaseId: null, section: 0, fach: null, direction: 'rtl', recording: false };
+  if (reset) v.state = { screen: 'start', placeId: null, roomId: null, bookcaseId: null, section: 0, fach: null, direction: 'rtl', recording: false, query: '', book: null, hl: null };
   const el = document.getElementById(rootId);
   if (!el) return;
   if (!el.dataset.bound) {
@@ -74,7 +103,27 @@ function onClick(rootId, e) {
     case 'enter': st.screen = 'places'; break;
     case 'film-shelf': st.screen = 'places'; break;
     case 'barcode': window.switchView('barcodeView'); return;
-    case 'search': window.switchView('searchView'); return;
+    case 'search': Object.assign(st, { screen: 'search', hl: null }); break;
+    case 'open-fach': {
+      const [sec, fach] = id.split(':').map(Number);
+      Object.assign(st, { section: sec, fach, screen: 'fach' });
+      break;
+    }
+    case 'book': {
+      const [k, idx] = id.split('|');
+      st.book = { k, idx: Number(idx) };
+      break;
+    }
+    case 'close-book': st.book = null; break;
+    case 'locate': {
+      // Buch im Grundriss zeigen: zum Ort springen, Raum/Regal/Fach/Buch hervorheben
+      const { k, idx } = st.book;
+      const [caseId, sec, fach] = k.split(':');
+      const b = lib.bookcases.find(x => x.id === caseId);
+      Object.assign(st, { screen: 'place', placeId: b.placeId, roomId: b.roomId, bookcaseId: caseId, section: Number(sec), fach: Number(fach), book: null,
+        hl: { roomId: b.roomId, caseId, k, idx } });
+      break;
+    }
     case 'place': Object.assign(st, { screen: 'place', placeId: id }); break;
     case 'room': Object.assign(st, { screen: 'room', roomId: id }); break;
     case 'case': Object.assign(st, { screen: 'case', bookcaseId: id }); break;
@@ -100,8 +149,9 @@ function onClick(rootId, e) {
       break;
     }
     case 'save': {
-      const s = fachStatus[key(st.bookcaseId, st.section, st.fach)];
-      if (s) s.status = 'saved';
+      const k = key(st.bookcaseId, st.section, st.fach);
+      const s = fachStatus[k];
+      if (s) { s.status = 'saved'; shelfBooks[k] = s.items.filter(x => (x.title || '').trim()); }
       st.screen = 'case';
       toast(rootId, `Fach ${st.fach} gespeichert (Vorschau – noch nicht in der Datenbank).`);
       break;
@@ -118,6 +168,12 @@ function onClick(rootId, e) {
 }
 
 function onInput(rootId, e) {
+  if (e.target.id === `${rootId}-q`) {
+    views[rootId].state.query = e.target.value;
+    const out = document.getElementById(`${rootId}-results`);
+    if (out) out.innerHTML = renderResults(views[rootId].state.query);
+    return;
+  }
   const f = e.target.closest('[data-field]');
   if (!f) return;
   const st = views[rootId].state;
@@ -129,6 +185,9 @@ function onInput(rootId, e) {
 }
 
 function goBack(st) {
+  if (st.book) { st.book = null; return; }
+  if (st.screen === 'search') { st.screen = 'start'; return; }
+  if (st.screen === 'fach') { st.screen = 'case'; return; }
   if (st.screen === 'film' || st.screen === 'review') { st.recording = false; st.screen = 'case'; }
   else if (st.screen === 'case') Object.assign(st, { screen: 'room', bookcaseId: null });
   else if (st.screen === 'room') Object.assign(st, { screen: 'place', roomId: null });
@@ -231,7 +290,12 @@ function render(rootId) {
   else if (st.screen === 'case') html = cap ? renderCaptureCase(st) : renderCase(st);
   else if (st.screen === 'film') html = renderFilm(st, rootId);
   else if (st.screen === 'review') html = renderReview(st);
+  else if (st.screen === 'fach') html = renderFach(st);
+  else if (st.screen === 'search') html = renderSearch(st, rootId);
+  if (st.book) html += renderBookSheet(st);
   el.innerHTML = `<div class="card lib-card${cap ? ' mode-capture' : ''}">${html}</div>`;
+  if (st.screen === 'search' && !st.book) document.getElementById(`${rootId}-q`)?.focus();
+  el.querySelector('.is-hl-book')?.scrollIntoView({ block: 'center' });
 }
 
 function renderStart(st) {
@@ -289,10 +353,11 @@ function renderPlace(st, cap) {
   const { w, h } = bounds(rooms);
   const cases = lib.bookcases.filter(b => b.placeId === p.id);
   const roomEls = rooms.map(r => r.hasBooks
-    ? `<button type="button" class="lib-room lib-room-books" style="${box(r.plan, 0, 0, w, h)}" data-act="room" data-id="${esc(r.id)}" aria-label="${esc(r.name)}, ${casesOf(r.id).length} Regale"><span class="lib-room-name">${esc(r.name)}</span><span class="lib-room-count">${casesOf(r.id).length} Regale</span></button>`
+    ? `<button type="button" class="lib-room lib-room-books${st.hl?.roomId === r.id ? ' is-hl' : ''}" style="${box(r.plan, 0, 0, w, h)}" data-act="room" data-id="${esc(r.id)}" aria-label="${esc(r.name)}, ${casesOf(r.id).length} Regale"><span class="lib-room-name">${esc(r.name)}</span><span class="lib-room-count">${casesOf(r.id).length} Regale</span></button>`
     : `<div class="lib-room" style="${box(r.plan, 0, 0, w, h)}"><span class="lib-room-small">${esc(r.name)}</span></div>`).join('');
-  const caseEls = cases.map(b => `<div class="lib-shelf" style="${box(b.plan, 0, 0, w, h)}" aria-hidden="true"></div>`).join('');
-  return header(st, p.name, `${cap ? 'Erfassen' : 'Meine Bibliothek'} · Raum antippen`) + `
+  const caseEls = cases.map(b => `<div class="lib-shelf${st.hl?.caseId === b.id ? ' is-hl' : ''}" style="${box(b.plan, 0, 0, w, h)}" aria-hidden="true"></div>`).join('');
+  const hlNote = st.hl ? `<p class="lib-hl-note">Das Buch steht im Raum <b>${esc(lib.rooms.find(r => r.id === st.hl.roomId)?.name)}</b>, ${esc(lib.bookcases.find(b => b.id === st.hl.caseId)?.name)}. Raum antippen.</p>` : '';
+  return header(st, p.name, `${cap ? 'Erfassen' : 'Meine Bibliothek'} · Raum antippen`) + hlNote + `
     <div class="lib-plan" style="aspect-ratio:${w} / ${h}">${roomEls}${caseEls}</div>
     <div class="lib-legend"><span class="lib-shelf lib-legend-swatch" aria-hidden="true"></span>Schraffiert = Regal</div>`;
 }
@@ -303,11 +368,11 @@ function renderRoom(st, cap) {
   const pad = 0.3;
   const ox = r.plan.x - pad, oy = r.plan.y - pad, W = r.plan.w + 2 * pad, H = r.plan.h + 2 * pad;
   const caseEls = cases.map((b, i) =>
-    `<button type="button" class="lib-shelf lib-shelf-btn" style="${box(b.plan, ox, oy, W, H)}" data-act="case" data-id="${esc(b.id)}" aria-label="${esc(b.name)}"><span class="lib-badge">${i + 1}</span></button>`).join('');
+    `<button type="button" class="lib-shelf lib-shelf-btn${st.hl?.caseId === b.id ? ' is-hl' : ''}" style="${box(b.plan, ox, oy, W, H)}" data-act="case" data-id="${esc(b.id)}" aria-label="${esc(b.name)}"><span class="lib-badge">${i + 1}</span></button>`).join('');
   const list = cases.map((b, i) => {
     const done = cap ? allFächer(b).filter(({ sec, fach }) => fachStatus[key(b.id, sec, fach)]?.status === 'saved').length : 0;
     const extra = cap ? ` · ${done}/${totalLayers(b)} erfasst` : '';
-    return `<button type="button" class="lib-row" data-act="case" data-id="${esc(b.id)}"><span class="lib-row-main"><span class="lib-badge">${i + 1}</span>${esc(b.name)}</span><span class="lib-muted">${esc(layerText(b) + extra)}</span></button>`;
+    return `<button type="button" class="lib-row${st.hl?.caseId === b.id ? ' is-hl' : ''}" data-act="case" data-id="${esc(b.id)}"><span class="lib-row-main"><span class="lib-badge">${i + 1}</span>${esc(b.name)}</span><span class="lib-muted">${esc(layerText(b) + extra)}</span></button>`;
   }).join('');
   return header(st, r.name, `${place(st)?.name || ''} · Regal antippen`) + `
     <div class="lib-plan" style="aspect-ratio:${W} / ${H}">
@@ -316,23 +381,109 @@ function renderRoom(st, cap) {
     <div class="lib-list">${list}</div>`;
 }
 
+function spines(items, limit = 60) {
+  return items.slice(0, limit).map((it, i) => {
+    const w = 10 + (it.title.length % 5) * 3, h = 70 + (it.title.length * 7 % 30);
+    return `<span class="lib-spine" style="width:${w}px;height:${h}%;background:${SPINE_COLORS[i % SPINE_COLORS.length]}"></span>`;
+  }).join('');
+}
+
 function renderCase(st) {
   const b = bookcase(st);
   const sections = b.sections || [{ layers: 1 }];
   const info = [sizeText(b), layerText(b)].filter(Boolean).join(' · ');
+  const total = allFächer(b).reduce((n, { sec, fach }) => n + (shelfBooks[key(b.id, sec, fach)]?.length || 0), 0);
   let front;
   if (sections.length > 1) {
     const cols = sections.map((s, si) => {
-      const fächer = Array.from({ length: s.layers }, (_, k) => `<div class="lib-sec-fach"><span>Fach ${k + 1}</span></div>`).join('');
+      const fächer = Array.from({ length: s.layers }, (_, k) => {
+        const items = shelfBooks[key(b.id, si, k + 1)] || [];
+        return `<button type="button" class="lib-sec-fach${items.length ? ' has-books' : ''}" data-act="open-fach" data-id="${si}:${k + 1}" aria-label="Abschnitt ${si + 1}, Fach ${k + 1}: ${items.length} Bücher"><span>Fach ${k + 1}</span>${items.length ? `<b>${items.length}</b>` : ''}</button>`;
+      }).join('');
       return `<div class="lib-sec"><span class="lib-sec-name">Abschnitt ${si + 1}</span>${fächer}</div>`;
     }).join('');
     front = `<div class="lib-front"><div class="lib-secs">${cols}</div>${b.baseCabinet ? '<div class="lib-base">Unterschrank (keine Bücher)</div>' : ''}</div>`;
   } else {
-    front = `<div class="lib-front">` + Array.from({ length: sections[0].layers }, (_, k) =>
-      `<div class="lib-fach"><span class="lib-fach-label">Fach ${k + 1}${k === 0 ? ' (oben)' : ''}</span><span class="lib-muted">Noch nicht erfasst</span></div>`).join('') + `</div>`;
+    front = `<div class="lib-front">` + Array.from({ length: sections[0].layers }, (_, k) => {
+      const kk = key(b.id, 0, k + 1);
+      const items = shelfBooks[kk] || [];
+      const hl = st.hl?.k === kk ? ' is-hl' : '';
+      if (!items.length) {
+        return `<div class="lib-fach"><span class="lib-fach-label">Fach ${k + 1}${k === 0 ? ' (oben)' : ''}</span><span class="lib-muted">Noch nicht erfasst</span></div>`;
+      }
+      return `<button type="button" class="lib-fach lib-fach-books${hl}" data-act="open-fach" data-id="0:${k + 1}" aria-label="Fach ${k + 1}: ${items.length} Bücher anzeigen">
+        <span class="lib-fach-top"><span class="lib-fach-label">Fach ${k + 1}${k === 0 ? ' (oben)' : ''}</span><span class="lib-muted">${items.length} Bücher ›</span></span>
+        <span class="lib-spines" aria-hidden="true">${spines(items)}</span></button>`;
+    }).join('') + `</div>`;
   }
   return header(st, b.name, `${place(st)?.name || ''} › ${room(st)?.name || ''}`) + `
-    <p class="lib-info">${esc(info)}${b.note && b.widthM ? ` · ${esc(b.note)}` : ''}</p>${front}`;
+    <p class="lib-info">${esc(info)} · ${total} Bücher${b.note && b.widthM ? ` · ${esc(b.note)}` : ''}</p>${front}`;
+}
+
+function renderFach(st) {
+  const b = bookcase(st);
+  const k = key(b.id, st.section, st.fach);
+  const items = shelfBooks[k] || [];
+  const rows = items.map((it, i) => `
+    <button type="button" class="lib-book${st.hl?.k === k && st.hl?.idx === i ? ' is-hl is-hl-book' : ''}" data-act="book" data-id="${k}|${i}">
+      <span class="lib-book-pos">${i + 1}</span>
+      <span class="lib-book-text"><span class="lib-book-title">${esc(it.title)}</span>${it.author ? `<span class="lib-muted">${esc(it.author)}</span>` : ''}</span>
+      ${it.kind && it.kind !== 'book' ? `<span class="lib-kind">${KIND_LABEL[it.kind]}</span>` : ''}
+    </button>`).join('');
+  return header(st, fachName(b, st.section, st.fach), `${room(st)?.name || ''} › ${b.name}`) + `
+    <p class="lib-info">${items.length} Bücher · von links nach rechts</p>
+    <div class="lib-books">${rows || '<p class="lib-muted">Noch nicht erfasst.</p>'}</div>`;
+}
+
+function whereText(k, idx) {
+  const [caseId, sec, fach] = k.split(':');
+  const b = lib.bookcases.find(x => x.id === caseId);
+  const r = lib.rooms.find(x => x.id === b?.roomId);
+  return `${r?.name || ''} › ${b?.name || ''} › ${fachName(b, Number(sec), Number(fach))} · ${idx + 1}. von links`;
+}
+
+function renderBookSheet(st) {
+  const { k, idx } = st.book;
+  const it = shelfBooks[k]?.[idx];
+  if (!it) return '';
+  return `
+    <div class="lib-sheet-bg">
+      <div class="lib-sheet" role="dialog" aria-label="Buchdetails">
+        <span class="lib-sheet-title">${esc(it.title)}</span>
+        <span class="lib-muted">${esc(it.author || 'Autor unbekannt')}${it.kind && it.kind !== 'book' ? ` · ${KIND_LABEL[it.kind]}` : ''}</span>
+        <span class="lib-where"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>${esc(whereText(k, idx))}</span>
+        <div class="lib-actions">
+          <button type="button" class="btn btn-secondary" data-act="close-book">Schließen</button>
+          <button type="button" class="btn lib-gold" data-act="locate">Im Grundriss zeigen</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderResults(query) {
+  const q = (query || '').trim().toLowerCase();
+  if (q.length < 2) return '<p class="lib-muted">Mindestens 2 Buchstaben eingeben.</p>';
+  const hits = [];
+  for (const [k, items] of Object.entries(shelfBooks)) {
+    items.forEach((it, idx) => {
+      if (`${it.title} ${it.author}`.toLowerCase().includes(q)) hits.push({ k, idx, it });
+    });
+  }
+  if (!hits.length) return '<p class="lib-muted">Nichts gefunden.</p>';
+  return `<p class="lib-muted">${hits.length} Treffer</p>` + hits.slice(0, 50).map(({ k, idx, it }) => `
+    <button type="button" class="lib-book" data-act="book" data-id="${k}|${idx}">
+      <span class="lib-book-text"><span class="lib-book-title">${esc(it.title)}</span>
+      ${it.author ? `<span class="lib-muted">${esc(it.author)}</span>` : ''}
+      <span class="lib-where-small">${esc(whereText(k, idx))}</span></span>
+    </button>`).join('');
+}
+
+function renderSearch(st, rootId) {
+  return header(st, 'Buch suchen', 'Meine Bibliothek') + `
+    <label class="lib-sr" for="${rootId}-q">Titel oder Autor</label>
+    <input id="${rootId}-q" type="search" class="lib-input lib-search-input" placeholder="Titel oder Autor" value="${esc(st.query)}" autocomplete="off">
+    <div id="${rootId}-results" class="lib-books">${renderResults(st.query)}</div>
+    <p class="lib-muted lib-small">Vorschau: durchsucht die Beispieldaten und die in „Erfassen“ gespeicherten Fächer.</p>`;
 }
 
 const STATUS = {
