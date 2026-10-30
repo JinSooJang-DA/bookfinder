@@ -71,6 +71,7 @@ git diff --check
 - `places/{id}` {name, order, icon, hasPlan} · `rooms/{id}` {placeId, name, order, hasBooks, plan{x,y,w,h} 미터} · `bookcases/{id}` {placeId, roomId, name, order, widthM, heightM, plan, sections[{layers}], note?, baseCabinet?}. Fach 1 = 맨 위.
 - 개발용 화면 `dev-tools.html`(처음 데이터 넣기, 도면·표 확인). 처음 데이터 22개(장소 2, 방 11, 책장 9) 생성 완료.
 - 영상 실험 화면 `video-test.html`. 서재 1 Fach 1: 느린 영상(20.7초) 69/70·84항목·Gemini 41초. 1.7배 빠른 영상(12.1초): 0.75초 간격 16장 64/70·Gemini 47초, **0.5초 간격 24장 68/70·82항목·Gemini 82초**(지어낸 항목 없음, 참고 목록 밖 항목은 실제 책).
+- **촬영 방향:** 휴대폰 **가로**(사용자 실제 촬영 방식, 68/70 검증). 실제 카메라 연결 시: 세로로 들면 "Bitte Handy quer drehen" 안내를 띄우고 가로일 때만 촬영 버튼 표시, 카메라 화면 위에 위·아래 선반 가이드 선.
 - **촬영 방식 결정 (2026-10-30):** 층별 가로 영상, 빠르게(약 12초/2.5m) 훑어도 됨, 장면 간격 0.5초, thinking 기본값(niedrig는 효과 없음). 분석은 뒤에서 돌리고 다음 층 촬영(여러 층 동시 분석 가능). 개선 후보: 장면을 2~3묶음으로 나눠 병렬 분석 후 합치기.
 
 - **탐색 화면 (2026-10-30, 실기기 확인됨):** `src/library-view.js`·`src/library-view.css`, `index.html`의 `libraryView`. 메인 메뉴 Library 책 → Meine Bibliothek(건물) → Wohin?(Wohnung/Keller) → 도면 → 방 → 책장 정면(Fach 목록, 섹터·하단 수납장). "Buch suchen"은 기존 `searchView`로. 앱 기본 언어 `de`.
