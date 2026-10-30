@@ -43,7 +43,7 @@
         </div>
 
         <!-- 3. 도서 입력 (Book Input Hub로 이동) -->
-        <div class="menu-book" onclick="handleBookClick(this, 'bookInputHubView')">
+        <div class="menu-book" onclick="handleBookClick(this, 'captureView')">
           <div class="book-spine"><span id="spineBookInputTitle">Book Input</span></div>
           <div class="book-cover">
             <span id="menuBookInputTitle">Book Input</span>
@@ -70,6 +70,8 @@
 
     <!-- Bibliothek erkunden: Gebäude → Grundriss → Raum → Regal (src/library-view.js) -->
     <div id="libraryView" class="sub-view" style="display: none;"></div>
+    <!-- Erfassen: gleicher Grundriss, Fach filmen → prüfen (src/library-view.js, Vorschau) -->
+    <div id="captureView" class="sub-view" style="display: none;"></div>
 
     <!-- 💡 Book Input Hub (도서 입력 서브메뉴 선택 센터) -->
     <div id="bookInputHubView" class="sub-view" style="display: none;">

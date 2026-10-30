@@ -14,7 +14,7 @@ import { saveImageToImgBB } from './storage.js';
 import { initBarcodeModule, loadBarcodeHierarchyOptions, stopScanner } from './barcode.js';
 import { initBookListModule, updateRoomDropdown, loadSavedBooks } from './booklist.js';
 import { initGalleryModule, loadGalleryHierarchy } from './gallery.js';
-import { openLibraryView } from './library-view.js';
+import { openLibraryView, openCaptureView } from './library-view.js';
 
 const authContainer = document.getElementById('authContainer');
 const appMainWrapper = document.getElementById('appMainWrapper');
@@ -305,6 +305,7 @@ window.switchView = (viewId) => {
     if (targetView) {
       targetView.style.display = 'block';
       if (viewId === 'libraryView') openLibraryView();
+      if (viewId === 'captureView') openCaptureView();
       if (viewId === 'galleryView') loadGalleryHierarchy();
       if (viewId === 'barcodeView') loadBarcodeHierarchyOptions();
       if (viewId === 'scanView' || viewId === 'setupView') updateScanOptions();
