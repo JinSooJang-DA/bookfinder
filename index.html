@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="appTitle">bookfinder</title>
   <link rel="stylesheet" href="./src/style.css" />
+  <link rel="stylesheet" href="./src/library-view.css" />
 </head>
 <body>
   <!-- 로그인 컨테이너 -->
@@ -33,7 +34,7 @@
       <div class="bookshelf-menu">
         
         <!-- 1. 라이브러리 -->
-        <div class="menu-book active" onclick="handleBookClick(this, 'searchView')">
+        <div class="menu-book active" onclick="handleBookClick(this, 'libraryView')">
           <div class="book-spine"><span id="spineSearchTitle">Library</span></div>
           <div class="book-cover">
             <span id="menuLibraryTitle">Library</span>
@@ -75,6 +76,9 @@
     <div id="navBackBar" style="display: none; margin-bottom: 15px;">
       <button class="btn btn-secondary btn-sm" id="backToMenuBtn" onclick="switchView('mainDashboard')">Back to Menu</button>
     </div>
+
+    <!-- Bibliothek erkunden: Gebäude → Grundriss → Raum → Regal (src/library-view.js) -->
+    <div id="libraryView" class="sub-view" style="display: none;"></div>
 
     <!-- 💡 Book Input Hub (도서 입력 서브메뉴 선택 센터) -->
     <div id="bookInputHubView" class="sub-view" style="display: none;">
@@ -235,8 +239,8 @@
         <div class="filter-box" style="margin-bottom: 20px;">
           <label id="lblUiLang" style="color: #d4af37;">App Language</label>
           <select id="uiLanguageSelect" style="margin-bottom: 0;">
-            <option value="en" selected>English</option>
-            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+            <option value="de" selected>Deutsch</option>
             <option value="ko">한국어</option>
           </select>
         </div>

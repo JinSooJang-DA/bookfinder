@@ -14,6 +14,7 @@ import { saveImageToImgBB } from './storage.js';
 import { initBarcodeModule, loadBarcodeHierarchyOptions, stopScanner } from './barcode.js';
 import { initBookListModule, updateRoomDropdown, loadSavedBooks } from './booklist.js';
 import { initGalleryModule, loadGalleryHierarchy } from './gallery.js';
+import { openLibraryView } from './library-view.js';
 
 const authContainer = document.getElementById('authContainer');
 const appMainWrapper = document.getElementById('appMainWrapper');
@@ -72,8 +73,8 @@ const cancelEditBtn = document.getElementById('cancelEditBtn');
 const viewPhotoInEditBtn = document.getElementById('viewPhotoInEditBtn');
 const deleteInEditBtn = document.getElementById('deleteInEditBtn');
 
-let currentLang = 'en';
-window.currentLang = 'en'; 
+let currentLang = 'de';
+window.currentLang = 'de';
 let currentEditingBookId = null;
 
 let currentShotIndex = 0;
@@ -303,6 +304,7 @@ window.switchView = (viewId) => {
     const targetView = document.getElementById(viewId);
     if (targetView) {
       targetView.style.display = 'block';
+      if (viewId === 'libraryView') openLibraryView();
       if (viewId === 'galleryView') loadGalleryHierarchy();
       if (viewId === 'barcodeView') loadBarcodeHierarchyOptions();
       if (viewId === 'scanView' || viewId === 'setupView') updateScanOptions();
@@ -749,5 +751,5 @@ executeDeleteBtn?.addEventListener('click', async () => {
   }
 });
 
-window.currentLang = 'en';
-applyUiLanguage('en');
+window.currentLang = 'de';
+applyUiLanguage('de');
