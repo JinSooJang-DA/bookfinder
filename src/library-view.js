@@ -46,6 +46,7 @@ const SPINE_COLORS = ['#4f5e45', '#6e3428', '#2c445b', '#7d5f28', '#5c5852', '#4
 // Braucht einen sicheren Kontext (https oder localhost). Auf dem Handy: npm run dev:phone.
 let camStream = null;
 let camStarting = null;
+let torchOn = false; // Taschenlampe (Blitz als Dauerlicht), bleibt an bis zum Ausschalten oder Kamera-Ende
 
 async function ensureCamera(rootId) {
   const video = document.querySelector(`#${rootId} .lib-cam-video`);
@@ -66,6 +67,7 @@ async function ensureCamera(rootId) {
     video.srcObject = camStream;
     await video.play().catch(() => {});
     if (note) note.textContent = '';
+    updateTorchBtn(rootId);
   } catch (err) {
     camStream = null;
     if (note) note.textContent = 'Kamera nicht verfügbar: ' + (err?.message || err);
@@ -77,6 +79,31 @@ async function ensureCamera(rootId) {
 export function stopCamera() {
   camStream?.getTracks().forEach(t => t.stop());
   camStream = null;
+  torchOn = false;
+}
+
+// Licht: nur zeigen, wenn die Kamera es unterstützt (Android Chrome: torch)
+function torchSupported() {
+  const track = camStream?.getVideoTracks()[0];
+  try { return !!track?.getCapabilities?.().torch; } catch { return false; }
+}
+function updateTorchBtn(rootId) {
+  const btn = document.querySelector(`#${rootId} .lib-torch`);
+  if (!btn) return;
+  btn.hidden = !torchSupported();
+  btn.classList.toggle('is-on', torchOn);
+  btn.setAttribute('aria-pressed', String(torchOn));
+}
+async function toggleTorch(rootId) {
+  const track = camStream?.getVideoTracks()[0];
+  if (!track || !torchSupported()) return;
+  try {
+    await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
+    torchOn = !torchOn;
+  } catch (err) {
+    console.warn('Licht nicht umschaltbar', err);
+  }
+  updateTorchBtn(rootId);
 }
 
 // Nach Änderungen in den Einstellungen neu aus Firestore laden
@@ -178,6 +205,7 @@ function onClick(rootId, e) {
       break;
     }
     case 'dir': st.direction = id; break;
+    case 'torch': toggleTorch(rootId); return;
     case 'rec-start': startRecording(rootId); return;
     case 'rec-stop': stopRecording(rootId); return;
     case 'reverse': {
@@ -665,6 +693,10 @@ function renderFilm(st, rootId) {
       </div>
       <div class="lib-stage-ctrl">
         <button type="button" class="lib-stage-close" data-act="back" aria-label="Schließen">✕</button>
+        <button type="button" class="lib-torch${torchOn ? ' is-on' : ''}" data-act="torch" aria-pressed="${torchOn}" aria-label="Licht" title="Licht" hidden>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"></path></svg>
+          <span>Licht</span>
+        </button>
         ${st.recording
           ? '<button type="button" class="lib-shutter is-stop" data-act="rec-stop" aria-label="Aufnahme beenden"><span></span></button>'
           : '<button type="button" class="lib-shutter" data-act="rec-start" aria-label="Aufnahme starten"><span></span></button>'}

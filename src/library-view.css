@@ -256,6 +256,12 @@
 .lib-shutter.is-stop span { width: 28px; height: 28px; border-radius: 6px; }
 .lib-shutter-label { font-size: 0.75rem; color: #c1a88a; }
 .lib-stage-close { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.4); color: #f3ead8; border: 1px solid rgba(243,234,216,0.4); cursor: pointer; display: none; }
+.lib-torch {
+  display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 22px; cursor: pointer;
+  background: rgba(0,0,0,0.4); color: #f3ead8; border: 1px solid rgba(243,234,216,0.4); font: inherit; font-size: 0.85rem;
+}
+.lib-torch[hidden] { display: none; }
+.lib-torch.is-on { background: #f2d36b; color: #1d1608; border-color: #f2d36b; }
 .lib-dir-stage { flex: 0 0 auto; }
 .lib-dir-stage .lib-dir-btn { min-width: 52px; font-size: 1.1rem; }
 
@@ -269,6 +275,7 @@
   .lib-stage .lib-cam.is-rec { box-shadow: inset 0 0 0 3px #d9534f; }
   .lib-stage-ctrl { flex: 0 0 104px; flex-direction: column; justify-content: space-between; padding: 12px 0; background: rgba(0,0,0,0.85); }
   .lib-stage-close { display: block; }
+  .lib-torch { flex-direction: column; gap: 0; min-height: 52px; width: 64px; padding: 4px 0; border-radius: 14px; justify-content: center; font-size: 0.7rem; }
   .lib-dir-stage { flex-direction: column; gap: 6px; }
   .lib-dir-stage .lib-dir-btn { min-height: 40px; }
 }
