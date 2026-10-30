@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BookFinder – Entwicklerwerkzeuge</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #17120d; color: #efe4cf; font-family: system-ui, sans-serif; }
+    main { max-width: 960px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+    h1 { margin: 0; color: #c9a96e; font-size: 24px; }
+    h2 { margin: 0; color: #c9a96e; font-size: 18px; }
+    .card { border: 1px solid rgba(201,169,110,0.35); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #c7b598; }
+    input { background: #0e0a07; color: #efe4cf; border: 1px solid rgba(201,169,110,0.4); border-radius: 8px; padding: 8px; font: inherit; }
+    button { min-height: 44px; padding: 0 16px; background: #c9a96e; color: #17120d; border: 0; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; }
+    button.secondary { background: transparent; color: #c9a96e; border: 1px solid #c9a96e; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #status { white-space: pre-line; color: #e2c48d; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid rgba(201,169,110,0.15); vertical-align: top; }
+    th { color: #c9a96e; }
+    svg { width: 100%; max-width: 420px; background: #120e0a; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Entwicklerwerkzeuge</h1>
+    <p style="margin:0;font-size:13px;color:#a8957a">Nur für die Entwicklung (npm run dev). Aufbau der Bibliothek in Firestore anlegen und prüfen.</p>
+
+    <section class="card">
+      <h2>Anmeldung</h2>
+      <div id="authState">…</div>
+      <div class="row" id="loginRow">
+        <label>E-Mail <input type="email" id="email" autocomplete="username"></label>
+        <label>Passwort <input type="password" id="password" autocomplete="current-password"></label>
+        <button type="button" id="loginBtn">Anmelden</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Bibliothek</h2>
+      <div class="row">
+        <button type="button" id="seedBtn" disabled>Startdaten anlegen</button>
+        <button type="button" id="reloadBtn" class="secondary" disabled>Neu laden</button>
+      </div>
+      <div id="status"></div>
+      <div id="plan"></div>
+      <table>
+        <thead><tr><th>Raum</th><th>Regal</th><th>Größe</th><th>Abschnitte · Fächer</th><th>Notiz</th></tr></thead>
+        <tbody id="caseBody"></tbody>
+      </table>
+    </section>
+  </main>
+  <script type="module" src="./src/dev-tools.js"></script>
+</body>
+</html>

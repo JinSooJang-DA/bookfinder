@@ -65,6 +65,14 @@ git diff --check
 - **사용자 승인 없이 커밋·푸시·배포하지 않는다.**
 - GitHub 저장소는 비공개 백업용이다. 2026-10-29부터 `deploy.yml`은 자동 실행되지 않는다(Actions 탭에서 직접 실행할 때만 GitHub Pages 배포). Pages 사이트는 사용자가 Unpublish 했다.
 
+## 도서관 구조 데이터 (2026-10-30 Firestore에 생성됨)
+
+- `src/library.js`(불러오기·처음 데이터 넣기), `src/library-seed.js`(처음 데이터). 기존 `books`는 그대로.
+- `places/{id}` {name, order, icon, hasPlan} · `rooms/{id}` {placeId, name, order, hasBooks, plan{x,y,w,h} 미터} · `bookcases/{id}` {placeId, roomId, name, order, widthM, heightM, plan, sections[{layers}], note?, baseCabinet?}. Fach 1 = 맨 위.
+- 개발용 화면 `dev-tools.html`(처음 데이터 넣기, 도면·표 확인). 처음 데이터 22개(장소 2, 방 11, 책장 9) 생성 완료.
+- 영상 실험 화면 `video-test.html`. 서재 1 Fach 1: 느린 영상(20.7초) 69/70·84항목·Gemini 41초. 1.7배 빠른 영상(12.1초): 0.75초 간격 16장 64/70·Gemini 47초, **0.5초 간격 24장 68/70·82항목·Gemini 82초**(지어낸 항목 없음, 참고 목록 밖 항목은 실제 책).
+- **촬영 방식 결정 (2026-10-30):** 층별 가로 영상, 빠르게(약 12초/2.5m) 훑어도 됨, 장면 간격 0.5초, thinking 기본값(niedrig는 효과 없음). 분석은 뒤에서 돌리고 다음 층 촬영(여러 층 동시 분석 가능). 개선 후보: 장면을 2~3묶음으로 나눠 병렬 분석 후 합치기.
+
 ## 다음 계획 (2026-10-29 사용자와 정함)
 
 - **앱 사용자는 독일 사람이다 → 모든 메뉴·버튼·안내·알림 텍스트는 독일어.** (사용자 Komfact와의 대화·설명은 한국어.) 현재 `src/i18n.js`에 en/de/ko가 있지만 기본 언어가 `en`이고, `src/main.js`·`index.html`에 영어/한국어로만 하드코딩된 문구가 있다 → 기본 `de`, 하드코딩 문구 정리, 새 화면은 독일어로 만든다. 책 제목·저자는 번역하지 않고 책등에 적힌 원어 그대로 읽는다.
