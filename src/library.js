@@ -6,7 +6,7 @@
 //   books/{id}     neues Format v: 2 { v, title, author, kind, unsure, placeId, roomId, bookcaseId, section, fach, position, source }
 //                  position = 1, 2, 3 … von links. Alte Testdaten in "books" haben kein Feld v.
 // Fach 1 ist immer das oberste Fach eines Abschnitts.
-import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { SEED_PLACES, SEED_ROOMS, SEED_BOOKCASES } from './library-seed.js';
 
@@ -116,6 +116,23 @@ export async function insertBook(where_, index, book) {
   ops.push((batch) => batch.set(ref, { ...bookData(book, where_, index + 1, 'manual'), createdAt: serverTimestamp() }));
   await commitInChunks(ops);
   return loadFach(where_.bookcaseId, where_.section, where_.fach);
+}
+
+// Ein gespeichertes Buch bearbeiten (Titel, Autor, Art). Platz und Position bleiben gleich.
+export async function updateBook(id, { title, author, kind }) {
+  const data = { title: (title || '').trim(), author: (author || '').trim(), kind: kind || 'book', unsure: false, updatedAt: serverTimestamp() };
+  await updateDoc(doc(db, 'books', id), data);
+  return data;
+}
+
+// Ein Buch endgültig löschen; alle Bücher rechts davon rücken um 1 nach links (in einem Batch).
+export async function deleteBook(book) {
+  const list = await loadFach(book.bookcaseId, book.section, book.fach);
+  const ops = [(batch) => batch.delete(doc(db, 'books', book.id))];
+  list.filter(b => b.id !== book.id && b.position > book.position)
+    .forEach(b => ops.push((batch) => batch.update(doc(db, 'books', b.id), { position: b.position - 1, updatedAt: serverTimestamp() })));
+  await commitInChunks(ops);
+  return loadFach(book.bookcaseId, book.section, book.fach);
 }
 
 // Alte Testdaten (ohne v: 2) zählen bzw. löschen — nur über dev-tools.html

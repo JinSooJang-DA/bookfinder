@@ -16,6 +16,7 @@ import { initBookListModule, updateRoomDropdown, loadSavedBooks } from './bookli
 import { initGalleryModule, loadGalleryHierarchy } from './gallery.js';
 import { openLibraryView, openCaptureView, stopCamera } from './library-view.js';
 import { openSettingsView } from './settings-view.js';
+import { initBackNav, clickVisibleBack } from './back-nav.js';
 
 const authContainer = document.getElementById('authContainer');
 const appMainWrapper = document.getElementById('appMainWrapper');
@@ -317,6 +318,16 @@ window.switchView = (viewId) => {
   }
   applyUiLanguage(currentLang);
 };
+
+// Zurück-Taste des Handys: erst in der App zurück, im Hauptmenü erst die Seite verlassen
+initBackNav(() => {
+  const dashboard = document.getElementById('mainDashboard');
+  if (!dashboard || dashboard.style.display !== 'none') return false;
+  const active = [...document.querySelectorAll('.sub-view')].find(v => v.style.display === 'block');
+  if (clickVisibleBack(active)) return true;
+  window.switchView('mainDashboard');
+  return true;
+});
 
 function applyUiLanguage(lang) {
   const t = i18n[lang] || i18n['en'];

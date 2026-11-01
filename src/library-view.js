@@ -4,7 +4,7 @@
 // Liest den Aufbau aus Firestore (places, rooms, bookcases) über src/library.js.
 // Stand 2026-10-30: Kamera (getUserMedia, https), Bilder während der Aufnahme (live-sweep.js), Gemini-Analyse
 // (analyzeShelfSweep) und Speichern in Firestore (books v: 2, saveFach / insertBook) sind angeschlossen.
-import { loadLibrary, totalLayers, loadShelfBooks, saveFach, insertBook } from './library.js';
+import { loadLibrary, totalLayers, loadShelfBooks, saveFach, insertBook, updateBook, deleteBook } from './library.js';
 import { analyzeShelfSweep } from './api.js';
 import { startSweepCapture, captureSharpPhoto } from './live-sweep.js';
 
@@ -179,6 +179,18 @@ function onClick(rootId, e) {
       break;
     }
     case 'close-book': st.book = null; break;
+    case 'edit-book': {
+      const it = shelfBooks[st.book.k]?.[st.book.idx];
+      if (!it) return;
+      st.book.edit = { title: it.title || '', author: it.author || '', kind: it.kind || 'book', msg: '' };
+      setTimeout(() => document.getElementById('book-edit-title')?.focus(), 0);
+      break;
+    }
+    case 'cancel-edit': st.book.edit = null; break;
+    case 'ask-delete': st.book.confirmDel = true; break;
+    case 'cancel-delete': st.book.confirmDel = false; break;
+    case 'delete-book': deleteBookNow(rootId, btn); return;
+    case 'save-book': saveBookEdit(rootId, btn); return;
     case 'locate': {
       // Buch im Grundriss zeigen: zum Ort springen, Raum/Regal/Fach/Buch hervorheben
       const { k, idx } = st.book;
@@ -242,6 +254,8 @@ function onInput(rootId, e) {
     if (out) out.innerHTML = renderResults(views[rootId].state.query);
     return;
   }
+  const be = e.target.closest('[data-bookedit]');
+  if (be) { const ed = views[rootId].state.book?.edit; if (ed) ed[be.dataset.bookedit] = be.value; return; }
   const d = e.target.closest('[data-draft]');
   if (d) { views[rootId].state.draft[d.dataset.draft] = d.value; return; }
   const f = e.target.closest('[data-field]');
@@ -260,7 +274,12 @@ function goBack(st) {
   if (st.screen === 'insert') { st.screen = 'case'; return; }
   if (st.screen === 'places' && st.adding) { st.screen = 'addbook'; return; }
   if (st.screen === 'fach') { st.screen = 'case'; return; }
-  if (st.screen === 'film') { Object.assign(st, { recording: false, photos: [], screen: 'how' }); return; }
+  if (st.screen === 'film') {
+    // Laufende Aufnahme abbrechen (Zurück/✕ während der Aufnahme): Bilder verwerfen, nichts analysieren
+    if (sweep) { sweep.stop().catch(() => {}); sweep = null; }
+    Object.assign(st, { recording: false, photos: [], screen: 'how' });
+    return;
+  }
   if (st.screen === 'how' || st.screen === 'review') { st.recording = false; st.screen = 'case'; }
   else if (st.screen === 'case') Object.assign(st, { screen: 'room', bookcaseId: null });
   else if (st.screen === 'room') Object.assign(st, { screen: 'place', roomId: null });
@@ -383,6 +402,54 @@ async function saveReviewed(rootId, btn) {
     btn.disabled = false;
     btn.textContent = 'Speichern';
     toast(rootId, 'Speichern fehlgeschlagen: ' + (err?.message || err));
+  }
+}
+
+// Buch aus der Bibliothek bearbeiten (Blatt "Buchdetails" › Bearbeiten)
+async function saveBookEdit(rootId, btn) {
+  const st = views[rootId].state;
+  const { k, idx, edit } = st.book || {};
+  const it = shelfBooks[k]?.[idx];
+  if (!it || !edit) return;
+  if (!edit.title.trim()) { edit.msg = 'Bitte einen Titel eingeben.'; render(rootId); return; }
+  btn.disabled = true;
+  btn.textContent = 'Speichert …';
+  try {
+    const data = await updateBook(it.id, edit);
+    Object.assign(it, { title: data.title, author: data.author, kind: data.kind, unsure: false });
+    st.book.edit = null;
+    render(rootId);
+    toast(rootId, 'Änderungen gespeichert.');
+  } catch (err) {
+    console.error('[BookFinder Bearbeiten]', err);
+    edit.msg = 'Speichern fehlgeschlagen: ' + (err?.message || err);
+    render(rootId);
+  }
+}
+
+// Buch endgültig löschen (nach Rückfrage); die Bücher rechts davon rücken nach
+async function deleteBookNow(rootId, btn) {
+  const st = views[rootId].state;
+  const { k, idx } = st.book || {};
+  const it = shelfBooks[k]?.[idx];
+  if (!it) return;
+  btn.disabled = true;
+  btn.textContent = 'Löscht …';
+  try {
+    const list = await deleteBook(it);
+    if (list.length) shelfBooks[k] = list; else delete shelfBooks[k];
+    if (fachStatus[k]?.status === 'saved') {
+      if (list.length) fachStatus[k] = { status: 'saved', items: list }; else delete fachStatus[k];
+    }
+    st.book = null;
+    st.hl = null;
+    render(rootId);
+    toast(rootId, `„${titleOf(it)}“ gelöscht.`);
+  } catch (err) {
+    console.error('[BookFinder Löschen]', err);
+    btn.disabled = false;
+    btn.textContent = 'Löschen';
+    toast(rootId, 'Löschen fehlgeschlagen: ' + (err?.message || err));
   }
 }
 
@@ -641,6 +708,30 @@ function renderBookSheet(st) {
   const { k, idx } = st.book;
   const it = shelfBooks[k]?.[idx];
   if (!it) return '';
+  const ed = st.book.edit;
+  if (ed) {
+    const kinds = Object.entries(KIND_LABEL).map(([v, l]) => `<option value="${v}"${ed.kind === v ? ' selected' : ''}>${l}</option>`).join('');
+    return `
+    <div class="lib-sheet-bg">
+      <div class="lib-sheet" role="dialog" aria-label="Buch bearbeiten">
+        <span class="lib-sheet-title">Bearbeiten</span>
+        <span class="lib-where">${esc(whereText(k, idx))}</span>
+        <div class="set-form">
+          <label for="book-edit-title">Titel *</label>
+          <input id="book-edit-title" type="text" class="lib-input" data-bookedit="title" value="${esc(ed.title)}" autocomplete="off">
+          <label for="book-edit-author">Autor</label>
+          <input id="book-edit-author" type="text" class="lib-input" data-bookedit="author" value="${esc(ed.author)}" autocomplete="off">
+          <label for="book-edit-kind">Art</label>
+          <select id="book-edit-kind" class="lib-input" data-bookedit="kind">${kinds}</select>
+        </div>
+        ${ed.msg ? `<p class="set-msg" role="alert">${esc(ed.msg)}</p>` : ''}
+        <div class="lib-actions">
+          <button type="button" class="btn btn-secondary" data-act="cancel-edit">Abbrechen</button>
+          <button type="button" class="btn lib-gold" data-act="save-book">Speichern</button>
+        </div>
+      </div>
+    </div>`;
+  }
   return `
     <div class="lib-sheet-bg">
       <div class="lib-sheet" role="dialog" aria-label="Buchdetails">
@@ -649,8 +740,17 @@ function renderBookSheet(st) {
         <span class="lib-where"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>${esc(whereText(k, idx))}</span>
         <div class="lib-actions">
           <button type="button" class="btn btn-secondary" data-act="close-book">Schließen</button>
+          <button type="button" class="btn btn-secondary lib-edit-btn" data-act="edit-book">Bearbeiten</button>
           <button type="button" class="btn lib-gold" data-act="locate">Im Grundriss zeigen</button>
         </div>
+        ${st.book.confirmDel ? `
+        <div class="lib-del-confirm" role="alertdialog" aria-label="Löschen bestätigen">
+          <p><b>„${esc(titleOf(it))}“</b> wirklich löschen? Das kann nicht rückgängig gemacht werden. Die Bücher rechts davon rücken einen Platz nach.</p>
+          <div class="lib-actions">
+            <button type="button" class="btn btn-secondary" data-act="cancel-delete">Abbrechen</button>
+            <button type="button" class="btn lib-danger" data-act="delete-book">Löschen</button>
+          </div>
+        </div>` : '<button type="button" class="lib-del-link" data-act="ask-delete">Buch löschen</button>'}
       </div>
     </div>`;
 }

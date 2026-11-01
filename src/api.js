@@ -107,6 +107,8 @@ export async function analyzeBookshelfImage(imageInputs, targetLang = 'en') {
     'You are reading the spines of books standing on a bookshelf in the provided photo(s).',
     'List ONLY books whose spine (or cover) is actually visible in the photo(s), in order from left to right.',
     'Read the title and author from the spine text. Do not guess, do not complete a series, and do not add books that are not visible.',
+    'Titles and authors may be in ANY language and script (for example German, English, Korean Hangul, Japanese, Chinese, Cyrillic, Greek, Arabic, Hebrew).',
+    'Text in another language or script is readable text: write it exactly in the script printed on the spine. Never translate, never transliterate, and never leave the title empty only because it is in another language.',
     'Ignore cards, papers, flyers, DVDs, decorations and other objects that are not books.',
     'If a title is only partly readable, return the readable part. If the author is not visible, return an empty string.',
     `Output in ${targetLang}.`
@@ -347,6 +349,8 @@ export async function analyzeShelfSweep(frameBase64List, { direction = 'rtl', th
     'Return ONE list of all items standing or lying on THIS shelf, in their real physical order on the shelf from the LEFT end to the RIGHT end.',
     'For every item also give "frame": the number of the frame in which its spine is best readable, and "x": the horizontal position of the spine centre in that frame, from 0 (left edge of the image) to 1 (right edge).',
     'Read title and author exactly as printed on the spine, in the original language. Do not translate.',
+    'Titles and authors may be in ANY language and script (for example German, English, Korean Hangul, Japanese, Chinese, Cyrillic, Greek, Arabic, Hebrew).',
+    'Text in another language or script is readable text: write it exactly in the script printed on the spine. Never translate, never transliterate, and never leave the title empty only because it is in another language.',
     'kind: "book" for books, "film" for DVD/Blu-ray/video, "music" for CDs/records, "other" for other titled media.',
     'Ignore toys, model cars, figures, photos, papers, decorations, boxes without a title, ring binders/file folders and stamp or photo albums.',
     'Ignore items on the shelves above or below that are only partly visible at the top or bottom edge of the frames.',
