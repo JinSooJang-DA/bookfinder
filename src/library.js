@@ -136,6 +136,56 @@ export async function deleteBook(book) {
   return loadFach(book.bookcaseId, book.section, book.fach);
 }
 
+// Ein Regal mit mehreren Abschnitten in einzelne Regale aufteilen (ein Regal pro Abschnitt).
+// Abschnitt 1 behält die alte ID; die anderen bekommen neue IDs, ihre Bücher ziehen mit (Abschnitt → 0).
+// Grundriss: das Rechteck wird gleichmäßig geteilt. Abschnitt 1 liegt an dem Ende, das man von vorn
+// gesehen links hat (Wand unten im Grundriss → rechtes Ende, oben → links, linke Wand → unten, rechte Wand → oben).
+export function planSplit(bc, room) {
+  const n = (bc.sections || []).length;
+  const p = bc.plan, R = room?.plan;
+  if (!p || n < 2) return [];
+  const horizontal = p.w >= p.h;
+  let firstAtEnd; // true = Abschnitt 1 am Ende mit größerem x bzw. y
+  if (horizontal) firstAtEnd = R ? ((R.y + R.h) - (p.y + p.h)) < (p.y - R.y) : true;   // Wand unten → rechts
+  else firstAtEnd = R ? (p.x - R.x) < ((R.x + R.w) - (p.x + p.w)) : true;                 // linke Wand → unten
+  const r2 = (v) => Math.round(v * 1000) / 1000;
+  return bc.sections.map((s, i) => {
+    const slot = firstAtEnd ? n - 1 - i : i;
+    const piece = horizontal
+      ? { x: r2(p.x + p.w * slot / n), y: p.y, w: r2(p.w / n), h: p.h }
+      : { x: p.x, y: r2(p.y + p.h * slot / n), w: p.w, h: r2(p.h / n) };
+    return { id: i === 0 ? bc.id : `${bc.id}-a${i + 1}`, section: i, layers: s.layers, plan: piece };
+  });
+}
+
+export async function splitBookcase(bc, room) {
+  const pieces = planSplit(bc, room);
+  if (!pieces.length) throw new Error('Dieses Regal hat nur einen Abschnitt.');
+  const snap = await getDocs(query(collection(db, 'books'), where('bookcaseId', '==', bc.id)));
+  const { id, updatedAt, ...base } = bc;
+  const n = pieces.length;
+  const ops = pieces.map(pc => (batch) => batch.set(doc(db, 'bookcases', pc.id), {
+    ...base,
+    name: `${bc.name} · Abschnitt ${pc.section + 1}`,
+    sections: [{ layers: pc.layers }],
+    plan: pc.plan,
+    widthM: bc.widthM ? Math.round(bc.widthM / n * 100) / 100 : null,
+    splitFrom: bc.id,
+    updatedAt: serverTimestamp()
+  }));
+  let moved = 0;
+  snap.docs.forEach(d => {
+    const sec = d.data().section || 0;
+    if (sec === 0) return;
+    const pc = pieces[sec];
+    if (!pc) return;
+    moved++;
+    ops.push((batch) => batch.update(d.ref, { bookcaseId: pc.id, section: 0, updatedAt: serverTimestamp() }));
+  });
+  await commitInChunks(ops);
+  return { pieces: n, moved };
+}
+
 // Alte Testdaten (ohne v: 2) zählen bzw. löschen — nur über dev-tools.html
 export async function countLegacyBooks() {
   const snap = await getDocs(collection(db, 'books'));

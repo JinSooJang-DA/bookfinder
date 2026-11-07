@@ -22,6 +22,11 @@
     th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid rgba(201,169,110,0.15); vertical-align: top; }
     th { color: #c9a96e; }
     svg { width: 100%; max-width: 420px; background: #120e0a; border-radius: 8px; }
+    select { background: #0e0a07; color: #efe4cf; border: 1px solid rgba(201,169,110,0.4); border-radius: 8px; padding: 8px; font: inherit; }
+    .warn { color: #f0a868; }
+    .ok { color: #8fc28a; }
+    td input { width: 100%; box-sizing: border-box; padding: 6px; }
+    tr.changed td { background: rgba(240,168,104,0.08); }
   </style>
 </head>
 <body>
@@ -52,6 +57,24 @@
         <tbody id="caseBody"></tbody>
       </table>
     </section>
+    <section class="card">
+      <h2>Regale prüfen &amp; ordnen</h2>
+      <p style="margin:0;font-size:13px;color:#a8957a">Zeigt die Regale eines Raums, findet uneinheitliche Namen und Reihenfolgen und schlägt neue vor. Nummeriert wird als Weg durch den Raum: ab der gewählten Ecke immer zum nächsten Regal. Regale mit mehreren Abschnitten kann man in einzelne Regale aufteilen. Vorschläge kann man vor dem Speichern ändern. Bücher bleiben unverändert (sie hängen an der Regal-ID, nicht am Namen).</p>
+      <div class="row">
+        <label>Raum <select id="tidyRoom"></select></label>
+        <label>Nummerieren ab <select id="tidyStart">
+          <option value="tl">oben links (Tür)</option>
+          <option value="tr">oben rechts</option>
+          <option value="bl">unten links</option>
+          <option value="br">unten rechts</option>
+        </select></label>
+        <button type="button" id="tidyCheckBtn" class="secondary" disabled>Prüfen</button>
+      </div>
+      <div id="tidyOut"></div>
+      <div class="row"><button type="button" id="tidySaveBtn" disabled>Namen &amp; Reihenfolge speichern</button></div>
+      <div id="tidyStatus" style="font-size:14px;color:#e2c48d;white-space:pre-line"></div>
+    </section>
+
     <section class="card">
       <h2>Alte Testdaten</h2>
       <p style="margin:0;font-size:13px;color:#a8957a">Bücher im alten Format (aus den ersten Tests). Neue Bücher (Format v2) bleiben erhalten. Löschen kann nicht rückgängig gemacht werden.</p>
