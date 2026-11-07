@@ -324,3 +324,15 @@
 .lib-del-confirm { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(217,83,79,0.12); border: 1px solid rgba(217,83,79,0.6); }
 .lib-del-confirm p { margin: 0; font-size: 0.9rem; color: #f0d6d2; }
 .lib-danger { min-height: 48px; background: #d9534f; color: #fff; border: none; font-weight: 700; }
+
+/* Bücher per Barcode */
+.lib-reader-box { position: relative; border-radius: 12px; overflow: hidden; border: 2px solid rgba(143,194,138,0.7); background: #000; min-height: 220px; }
+.lib-reader { width: 100%; }
+.lib-reader video { width: 100% !important; display: block; object-fit: cover; }
+.lib-reader-note { z-index: 2; }
+.lib-isbn-row { display: flex; gap: 8px; }
+.lib-isbn-row .lib-input { flex: 1 1 auto; min-width: 0; }
+.lib-isbn-row .btn { flex: 0 0 auto; min-height: 44px; margin: 0; }
+.lib-scan-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; border: 1.5px solid #8fc28a; background: rgba(143,194,138,0.08); }
+.lib-scan-card .set-form { display: flex; flex-direction: column; gap: 6px; }
+.lib-scan-wait { display: flex; align-items: center; gap: 10px; padding: 18px 12px; color: #e9c97a; }

@@ -5,7 +5,8 @@
 // Stand 2026-10-30: Kamera (getUserMedia, https), Bilder während der Aufnahme (live-sweep.js), Gemini-Analyse
 // (analyzeShelfSweep) und Speichern in Firestore (books v: 2, saveFach / insertBook) sind angeschlossen.
 import { loadLibrary, totalLayers, loadShelfBooks, saveFach, insertBook, updateBook, deleteBook } from './library.js';
-import { analyzeShelfSweep } from './api.js';
+import { analyzeShelfSweep, fetchBookByISBN } from './api.js';
+import { startIsbnScan, stopIsbnScan, cleanCode } from './isbn-scan.js';
 import { startSweepCapture, captureSharpPhoto } from './live-sweep.js';
 
 let lib = null;
@@ -76,10 +77,16 @@ async function ensureCamera(rootId) {
   }
 }
 
-export function stopCamera() {
+function stopVideoStream() {
   camStream?.getTracks().forEach(t => t.stop());
   camStream = null;
   torchOn = false;
+}
+
+// Beim Verlassen der Ansicht (main.js switchView): Filmkamera und Barcode-Kamera schließen
+export function stopCamera() {
+  stopVideoStream();
+  stopIsbnScan();
 }
 
 // Licht: nur zeigen, wenn die Kamera es unterstützt (Android Chrome: torch)
@@ -150,7 +157,18 @@ function onClick(rootId, e) {
   switch (act) {
     case 'enter': st.screen = 'places'; break;
     case 'film-shelf': st.screen = 'places'; break;
-    case 'barcode': window.switchView('barcodeView'); return;
+    case 'barcode': Object.assign(st, { screen: 'places', adding: { barcode: true, title: '' }, scan: null, lastInsert: null }); break;
+    case 'scan-again': Object.assign(st.scan, { found: null, loading: false, msg: '', manual: '' }); break;
+    case 'isbn-lookup': lookupIsbn(rootId, st.scan?.manual || ''); return;
+    case 'scan-insert': insertScanned(rootId, btn); return;
+    case 'scan-slot': Object.assign(st, { screen: 'insert', scan: { ...st.scan, found: null } }); break;
+    case 'scan-done': {
+      const n = st.scan?.count || 0;
+      Object.assign(st, { adding: null, scan: null, screen: 'start' });
+      render(rootId);
+      if (n) toast(rootId, `${n} ${n === 1 ? 'Buch' : 'Bücher'} per Barcode eingefügt.`);
+      return;
+    }
     case 'add-book': Object.assign(st, { screen: 'addbook', adding: null, lastInsert: null, formMsg: '', draft: { title: '', author: '', kind: 'book' } }); break;
     case 'add-next': {
       if (!st.draft.title.trim()) { st.formMsg = 'Bitte einen Titel eingeben.'; break; }
@@ -164,7 +182,13 @@ function onClick(rootId, e) {
       Object.assign(st, { section: sec, fach, screen: 'insert' });
       break;
     }
-    case 'insert-at': insertHere(rootId, Number(id), btn); return;
+    case 'insert-at':
+      if (st.adding?.barcode) {
+        st.scan = { idx: Number(id), found: null, loading: false, msg: '', manual: '', count: st.scan?.count || 0, last: st.scan?.last || null };
+        st.screen = 'scan';
+        break;
+      }
+      insertHere(rootId, Number(id), btn); return;
     case 'cancel-add': Object.assign(st, { adding: null, screen: 'start' }); break;
     case 'done': Object.assign(st, { screen: 'start', lastInsert: null }); break;
     case 'search': Object.assign(st, { screen: 'search', hl: null }); break;
@@ -256,6 +280,13 @@ function onInput(rootId, e) {
   }
   const be = e.target.closest('[data-bookedit]');
   if (be) { const ed = views[rootId].state.book?.edit; if (ed) ed[be.dataset.bookedit] = be.value; return; }
+  const sc = e.target.closest('[data-scan]');
+  if (sc) {
+    const s = views[rootId].state.scan;
+    if (!s) return;
+    if (sc.dataset.scan === 'manual') s.manual = sc.value; else if (s.found) s.found[sc.dataset.scan] = sc.value;
+    return;
+  }
   const d = e.target.closest('[data-draft]');
   if (d) { views[rootId].state.draft[d.dataset.draft] = d.value; return; }
   const f = e.target.closest('[data-field]');
@@ -272,6 +303,8 @@ function goBack(st) {
   if (st.book) { st.book = null; return; }
   if (st.screen === 'search' || st.screen === 'addbook' || st.screen === 'inserted') { st.screen = 'start'; st.adding = null; return; }
   if (st.screen === 'insert') { st.screen = 'case'; return; }
+  if (st.screen === 'scan') { st.screen = 'insert'; return; }
+  if (st.screen === 'places' && st.adding?.barcode) { Object.assign(st, { adding: null, scan: null, screen: 'start' }); return; }
   if (st.screen === 'places' && st.adding) { st.screen = 'addbook'; return; }
   if (st.screen === 'fach') { st.screen = 'case'; return; }
   if (st.screen === 'film') {
@@ -453,6 +486,71 @@ async function deleteBookNow(rootId, btn) {
   }
 }
 
+// ---------------------------------------------------------------- Bücher per Barcode
+// Ablauf: Platz wählen (wie "Einzelnes Buch") → ISBN scannen → Daten prüfen → einfügen.
+// Danach geht es mit dem nächsten Platz rechts daneben weiter (mehrere Bücher nacheinander).
+function onScanned(rootId, text) {
+  const st = views[rootId].state;
+  if (st.screen !== 'scan' || !st.scan || st.scan.found || st.scan.loading) return;
+  navigator.vibrate?.(60);
+  lookupIsbn(rootId, text);
+}
+
+async function lookupIsbn(rootId, text) {
+  const st = views[rootId].state;
+  const s = st.scan;
+  if (!s) return;
+  const { code, isIsbn } = cleanCode(text);
+  if (code.length < 8) { s.msg = 'Bitte eine gültige ISBN (10 oder 13 Ziffern) eingeben.'; render(rootId); return; }
+  Object.assign(s, { loading: true, msg: '', code });
+  render(rootId);
+  let info = null;
+  try { info = await fetchBookByISBN(code); } catch (err) { console.warn('[BookFinder ISBN]', err); }
+  if (views[rootId].state.scan !== s) return; // inzwischen verlassen
+  s.loading = false;
+  s.found = {
+    title: info?.title || '',
+    author: info?.author && info.author !== 'Unknown' ? info.author : '',
+    kind: isIsbn ? 'book' : 'film',
+    isbn: code
+  };
+  s.msg = info ? '' : (isIsbn ? 'Keine Buchdaten zu dieser ISBN gefunden. Bitte Titel selbst eintragen.' : 'Kein Buch-Barcode (vielleicht DVD/CD). Bitte Titel und Art selbst eintragen.');
+  s.dup = findByIsbn(code);
+  render(rootId);
+  if (!info) setTimeout(() => document.getElementById(`${rootId}-scan-title`)?.focus(), 0);
+}
+
+function findByIsbn(code) {
+  for (const [k, items] of Object.entries(shelfBooks)) {
+    const idx = items.findIndex(x => x.isbn === code);
+    if (idx >= 0) return whereText(k, idx);
+  }
+  return null;
+}
+
+async function insertScanned(rootId, btn) {
+  const st = views[rootId].state;
+  const s = st.scan;
+  if (!s?.found) return;
+  if (!s.found.title.trim()) { s.msg = 'Bitte einen Titel eingeben.'; render(rootId); return; }
+  const k = key(st.bookcaseId, st.section, st.fach);
+  btn.disabled = true;
+  btn.textContent = 'Speichert …';
+  try {
+    const book = { title: s.found.title.trim(), author: s.found.author.trim(), kind: s.found.kind, isbn: s.found.isbn, source: 'barcode' };
+    const list = await insertBook(whereOf(st), s.idx, book);
+    shelfBooks[k] = list;
+    if (!fachStatus[k] || fachStatus[k].status === 'saved') fachStatus[k] = { status: 'saved', items: list };
+    st.scan = { idx: s.idx + 1, found: null, loading: false, msg: '', manual: '', count: (s.count || 0) + 1, last: { title: book.title, pos: s.idx + 1, shifted: list.length - 1 - s.idx } };
+    render(rootId);
+  } catch (err) {
+    console.error('[BookFinder Barcode einfügen]', err);
+    btn.disabled = false;
+    btn.textContent = 'Einfügen';
+    toast(rootId, 'Einfügen fehlgeschlagen: ' + (err?.message || err));
+  }
+}
+
 async function insertHere(rootId, idx, btn) {
   const st = views[rootId].state;
   const k = key(st.bookcaseId, st.section, st.fach);
@@ -541,17 +639,26 @@ function render(rootId) {
   else if (st.screen === 'insert') html = renderInsert(st);
   else if (st.screen === 'inserted') html = renderInserted(st);
   else if (st.screen === 'how') html = renderHow(st);
+  else if (st.screen === 'scan') html = renderScan(st, rootId);
   else if (st.screen === 'film') html = renderFilm(st, rootId);
   else if (st.screen === 'review') html = renderReview(st);
   else if (st.screen === 'fach') html = renderFach(st);
   else if (st.screen === 'search') html = renderSearch(st, rootId);
   if (st.adding && ['places', 'place', 'room', 'case', 'insert'].includes(st.screen)) {
-    html = `<div class="lib-adding" role="status">Platz wählen für <b>„${esc(st.adding.title)}“</b><button type="button" class="lib-adding-x" data-act="cancel-add">Abbrechen</button></div>` + html;
+    html = `<div class="lib-adding" role="status">${st.adding.barcode ? 'Platz wählen für <b>Bücher per Barcode</b>' : `Platz wählen für <b>„${esc(st.adding.title)}“</b>`}<button type="button" class="lib-adding-x" data-act="cancel-add">Abbrechen</button></div>` + html;
   }
   if (st.book) html += renderBookSheet(st);
   if (st.screen === 'addbook') setTimeout(() => document.getElementById(`${rootId}-title`)?.focus(), 0);
   el.innerHTML = `<div class="card lib-card${cap ? ' mode-capture' : ''}">${html}</div>`;
-  if (cap) { if (st.screen === 'film') ensureCamera(rootId); else stopCamera(); }
+  if (cap) {
+    if (st.screen === 'film') ensureCamera(rootId); else stopVideoStream();
+    if (st.screen === 'scan' && st.scan && !st.scan.found && !st.scan.loading) {
+      startIsbnScan(`${rootId}-reader`, (text) => onScanned(rootId, text), (msg) => {
+        const n = document.getElementById(`${rootId}-reader-note`);
+        if (n) n.textContent = msg;
+      });
+    } else stopIsbnScan();
+  }
   if (st.screen === 'search' && !st.book) document.getElementById(`${rootId}-q`)?.focus();
   el.querySelector('.is-hl-book')?.scrollIntoView({ block: 'center' });
 }
@@ -585,7 +692,7 @@ function renderCaptureStart(st) {
     </button>
     <button type="button" class="lib-choice" data-act="barcode">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 5v14M7 5v14M10 5v14M14 5v14M16 5v14M20 5v14"></path></svg>
-      <span><span class="lib-choice-title">Einzelnes Buch per Barcode</span><span class="lib-muted">Für ein neues Buch: ISBN scannen</span></span>
+      <span><span class="lib-choice-title">Bücher per Barcode</span><span class="lib-muted">Fach und Platz wählen, dann ISBN scannen – auch mehrere nacheinander</span></span>
     </button>`;
 }
 
@@ -953,6 +1060,64 @@ function renderInsert(st) {
   return header(st, `${fachName(b, st.section, st.fach)}: Platz wählen`, `${room(st)?.name || ''} › ${b.name}`) + `
     <p class="lib-info">Zwischen den richtigen Büchern antippen. Die Bücher rechts davon rücken eine Position weiter.</p>
     <div class="lib-books">${rows}${slot(items.length)}</div>`;
+}
+
+function renderScan(st, rootId) {
+  const b = bookcase(st);
+  const k = key(b.id, st.section, st.fach);
+  const items = shelfBooks[k] || [];
+  const s = st.scan;
+  const prev = items[s.idx - 1], next = items[s.idx];
+  const between = !items.length ? 'Das Fach ist noch leer.'
+    : !prev ? `ganz links, vor „${esc(titleOf(next))}“`
+    : !next ? `ganz rechts, nach „${esc(titleOf(prev))}“`
+    : `zwischen „${esc(titleOf(prev))}“ und „${esc(titleOf(next))}“`;
+  let body;
+  if (s.loading) {
+    body = `<div class="lib-scan-wait"><span class="lib-spinner" aria-hidden="true"></span> Suche Daten zu ISBN ${esc(s.code || '')} …</div>`;
+  } else if (s.found) {
+    const f = s.found;
+    const kinds = Object.entries(KIND_LABEL).map(([v, l]) => `<option value="${v}"${f.kind === v ? ' selected' : ''}>${l}</option>`).join('');
+    body = `
+    <div class="lib-scan-card">
+      <span class="lib-muted">ISBN/EAN ${esc(f.isbn)}</span>
+      ${s.dup ? `<p class="lib-hl-note" role="alert">Achtung: Dieses Buch ist schon gespeichert – ${esc(s.dup)}.</p>` : ''}
+      <div class="set-form">
+        <label for="${rootId}-scan-title">Titel *</label>
+        <input id="${rootId}-scan-title" type="text" class="lib-input" data-scan="title" value="${esc(f.title)}" autocomplete="off">
+        <label for="${rootId}-scan-author">Autor</label>
+        <input id="${rootId}-scan-author" type="text" class="lib-input" data-scan="author" value="${esc(f.author)}" autocomplete="off">
+        <label for="${rootId}-scan-kind">Art</label>
+        <select id="${rootId}-scan-kind" class="lib-input" data-scan="kind">${kinds}</select>
+      </div>
+      ${s.msg ? `<p class="set-msg" role="alert">${esc(s.msg)}</p>` : ''}
+      <div class="lib-actions">
+        <button type="button" class="btn btn-secondary" data-act="scan-again">Neu scannen</button>
+        <button type="button" class="btn lib-primary" data-act="scan-insert">Einfügen auf Platz ${s.idx + 1}</button>
+      </div>
+    </div>`;
+  } else {
+    body = `
+    <div class="lib-reader-box">
+      <div id="${rootId}-reader" class="lib-reader"></div>
+      <span class="lib-cam-note lib-reader-note" id="${rootId}-reader-note">Barcode auf der Rückseite in den Rahmen halten …</span>
+    </div>
+    <div class="lib-isbn-row">
+      <label class="lib-sr" for="${rootId}-isbn">ISBN von Hand</label>
+      <input id="${rootId}-isbn" type="text" inputmode="numeric" class="lib-input" data-scan="manual" value="${esc(s.manual || '')}" placeholder="ISBN von Hand eingeben" autocomplete="off">
+      <button type="button" class="btn btn-secondary" data-act="isbn-lookup">Suchen</button>
+    </div>
+    ${s.msg ? `<p class="set-msg" role="alert">${esc(s.msg)}</p>` : ''}`;
+  }
+  const last = s.last ? `<p class="set-msg" role="status">✓ „${esc(s.last.title)}“ steht jetzt auf Platz ${s.last.pos}.${s.last.shifted ? ` ${s.last.shifted} Bücher rechts davon sind eine Position weitergerückt.` : ''}</p>` : '';
+  return header(st, `${fachName(b, st.section, st.fach)} · Barcode`, `${room(st)?.name || ''} › ${b.name}`) + `
+    ${last}
+    <p class="lib-info">Nächster Platz: <b>${s.idx + 1}. von links</b> – ${between}</p>
+    ${body}
+    <div class="lib-actions">
+      <button type="button" class="btn btn-secondary" data-act="scan-slot">Anderen Platz</button>
+      <button type="button" class="btn lib-gold" data-act="scan-done">Fertig${s.count ? ` (${s.count})` : ''}</button>
+    </div>`;
 }
 
 function renderInserted(st) {

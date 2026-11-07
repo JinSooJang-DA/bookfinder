@@ -89,7 +89,8 @@ function bookData(b, where_, position, source) {
   return {
     v: 2, title: (b.title || '').trim(), author: (b.author || '').trim(), kind: b.kind || 'book', unsure: !!b.unsure,
     placeId: where_.placeId, roomId: where_.roomId, bookcaseId: where_.bookcaseId, section: where_.section, fach: where_.fach,
-    position, source: b.source || source, updatedAt: serverTimestamp()
+    position, source: b.source || source, updatedAt: serverTimestamp(),
+    ...(b.isbn ? { isbn: String(b.isbn) } : {})
   };
 }
 

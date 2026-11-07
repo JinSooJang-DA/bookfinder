@@ -86,6 +86,7 @@ git diff --check
 - **다른 언어 제목 (2026-10-31, 사용자 요청):** 어떤 언어·문자(한글·일본어·중국어·키릴 등)든 책등에 쓰인 그대로 저장. 번역·로마자 변환 금지, 언어가 달라서 제목을 비우는 것도 금지(두 분석 프롬프트 모두).
 - **책 삭제 (2026-11-01, 사용자 요청):** Buchdetails 아래 "Buch löschen" → 확인 상자 "Löschen" → `deleteBook(book)`(`src/library.js`): 문서 삭제와 함께 같은 Fach에서 오른쪽 책들 position −1(한 배치).
 - **휴대폰 뒤로 가기 (2026-11-01, 사용자 요청):** `src/back-nav.js` + `main.js` `initBackNav`. 뒤로 가기 = 보이는 화면의 앱 안 뒤로 버튼(`.lib-back`/`[data-act=back]`)을 누른 것과 같음 → 없으면 메인 메뉴 → 메인 메뉴에서만 사이트를 떠남. 촬영 중 뒤로 가기는 녹화를 버림(분석 안 함).
+- **바코드 입력 (2026-11-07, 사용자 요청):** Erfassen › "Bücher per Barcode": 장소→방→책장→Fach→자리(한 권 추가와 같은 화면) → 화면 `scan`에서 `src/isbn-scan.js`(html5-qrcode, EAN-13/8·UPC)로 스캔 또는 ISBN 직접 입력 → `fetchBookByISBN`(Google Books → Open Library) → 제목·저자·종류 확인/수정 → `insertBook`(뒤 책들 +1, source 'barcode', `isbn` 저장) → 다음 자리(오른쪽)로 이어서 스캔. 같은 ISBN이 이미 있으면 경고. 못 찾으면 직접 입력. 옛 barcodeView는 메뉴에서 안 씀.
 - **메뉴 역할 분리 (사용자 결정, 2026-10-30):** Bibliothek(첫 메뉴)은 이미 분석된 책을 보여 주기만 한다. 입력·촬영·분석은 별도 메뉴에서 한다(Bibliothek 안에 촬영 버튼 없음). 메인 메뉴는 책 세 권: **Bibliothek**(보기·검색) · **Erfassen**(영상 촬영, 바코드) · **Einstellungen**(방·책장 구조, 데이터, 언어). Galerie는 메뉴에서 제외(코드는 남아 있음).
 
 ## 다음 계획 (2026-10-29 사용자와 정함)
