@@ -1,6 +1,7 @@
 // src/dev-tools.js — Entwicklerwerkzeuge (nur npm run dev): Bibliotheks-Aufbau anlegen und prüfen
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase.js';
+import { seedKeller } from './library.js';
 import { loadLibrary, seedLibrary, totalLayers, countLegacyBooks, deleteLegacyBooks, loadShelfBooks, saveBookcase, splitBookcase, planSplit } from './library.js';
 
 const $ = (id) => document.getElementById(id);
@@ -12,6 +13,7 @@ onAuthStateChanged(auth, (user) => {
   $('loginRow').style.display = user ? 'none' : 'flex';
   $('seedBtn').disabled = !user;
   $('reloadBtn').disabled = !user;
+  $('kellerBtn').disabled = !user;
   $('countOldBtn').disabled = !user;
   $('tidyCheckBtn').disabled = !user;
   if (user) { refresh(); fillTidyRooms(); }
@@ -56,6 +58,7 @@ async function refresh(showStatus = true) {
         `<td>${(b.sections || []).length} · ${(b.sections || []).map(s => s.layers).join('/')} (${totalLayers(b)})</td>` +
         `<td>${esc(b.note || '')}</td></tr>`).join('');
     drawPlan(rooms.filter(r => r.placeId === 'wohnung'), bookcases.filter(b => b.placeId === 'wohnung'));
+    drawPlan(rooms.filter(r => r.placeId === 'keller'), bookcases.filter(b => b.placeId === 'keller'), 'planKeller', 'Keller');
   } catch (err) {
     console.error(err);
     $('status').textContent = 'Laden fehlgeschlagen: ' + err.message;
@@ -63,21 +66,23 @@ async function refresh(showStatus = true) {
 }
 
 // Grundriss zur Kontrolle der Meter-Werte (1 m = 40 px)
-function drawPlan(rooms, bookcases) {
-  if (!rooms.length) { $('plan').innerHTML = ''; return; }
+function drawPlan(rooms, bookcases, target = 'plan', label = 'Wohnung') {
+  if (!rooms.length) { $(target).innerHTML = ''; return; }
   const S = 40;
   const maxX = Math.max(...rooms.map(r => r.plan.x + r.plan.w));
   const maxY = Math.max(...rooms.map(r => r.plan.y + r.plan.h));
   const rect = (p, extra) => `<rect x="${p.x * S}" y="${p.y * S}" width="${p.w * S}" height="${p.h * S}" ${extra}/>`;
-  const label = (p, text, size, color) =>
+  const label2 = (b) => `<text x="${(b.plan.x + b.plan.w / 2) * S}" y="${(b.plan.y + b.plan.h / 2) * S}" font-size="9" fill="#fff" stroke="#17120d" stroke-width="2.5" paint-order="stroke" text-anchor="middle" dominant-baseline="middle">${esc(b.name.replace('Regal ', ''))}</text>`;
+  const lbl = (p, text, size, color) =>
     `<text x="${(p.x + p.w / 2) * S}" y="${(p.y + p.h / 2) * S}" font-size="${size}" fill="${color}" text-anchor="middle" dominant-baseline="middle">${esc(text)}</text>`;
-  $('plan').innerHTML =
-    `<svg viewBox="-4 -4 ${maxX * S + 8} ${maxY * S + 8}" role="img" aria-label="Grundriss der Wohnung">` +
+  $(target).innerHTML =
+    `<svg viewBox="-4 -4 ${maxX * S + 8} ${maxY * S + 8}" role="img" aria-label="Grundriss ${label}">` +
     rooms.map(r => rect(r.plan, r.hasBooks ? 'fill="rgba(201,169,110,0.06)" stroke="#c9a96e" stroke-width="1.5"' : 'fill="none" stroke="rgba(201,169,110,0.35)" stroke-dasharray="4 3"')).join('') +
-    rooms.map(r => label(r.plan, r.name, r.hasBooks ? 11 : 8, r.hasBooks ? '#e2c48d' : '#8f7c60')).join('') +
+    rooms.map(r => lbl(r.plan, r.name, r.hasBooks ? 11 : 8, r.hasBooks ? '#e2c48d' : '#8f7c60')).join('') +
     bookcases.map(b => rect(b.plan, 'fill="rgba(201,169,110,0.65)" stroke="#c9a96e"')).join('') +
+    (target === 'planKeller' ? bookcases.map(b => label2(b)).join('') : '') +
     `</svg>` +
-    `<div style="font-size:12px;color:#a8957a">Wohnung ca. ${num(Math.round(maxX * 10) / 10)} m × ${num(Math.round(maxY * 10) / 10)} m (aus der Skizze)</div>`;
+    `<div style="font-size:12px;color:#a8957a">${label} ca. ${num(Math.round(maxX * 10) / 10)} m × ${num(Math.round(maxY * 10) / 10)} m (aus der Skizze)</div>`;
 }
 
 // Alte Testdaten: erst zählen, dann zweimal bestätigen
@@ -298,3 +303,19 @@ $('tidyOut').addEventListener('click', async (e) => {
   }
 });
 $('tidyStart').addEventListener('change', () => { if (tidy) $('tidyCheckBtn').click(); });
+
+$('kellerBtn').addEventListener('click', async () => {
+  $('kellerBtn').disabled = true;
+  $('status').textContent = 'Keller wird angelegt …';
+  try {
+    const { written, skipped } = await seedKeller();
+    $('status').textContent = `Keller: ${written} neu angelegt, ${skipped} schon vorhanden (unverändert).`;
+    await refresh(false);
+    fillTidyRooms();
+  } catch (err) {
+    console.error(err);
+    $('status').textContent = 'Fehler: ' + err.message;
+  } finally {
+    $('kellerBtn').disabled = false;
+  }
+});

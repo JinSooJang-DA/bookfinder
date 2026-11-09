@@ -12,7 +12,7 @@ function plan(x0, y0, x1, y1) {
 
 export const SEED_PLACES = [
   { id: 'wohnung', name: 'Wohnung', order: 1, icon: 'home', hasPlan: true },
-  { id: 'keller', name: 'Keller', order: 2, icon: 'basement', hasPlan: false }
+  { id: 'keller', name: 'Keller', order: 2, icon: 'basement', hasPlan: true }
 ];
 
 export const SEED_ROOMS = [
@@ -54,4 +54,38 @@ export const SEED_BOOKCASES = [
   // unter Abschnitt 1 (3 Fächer, an der Decke) von Regal 2 — Abschnitt 1 liegt im Grundriss am rechten Ende der Wand
   { id: 'schlafzimmer-3', placeId: 'wohnung', roomId: 'wohnung-schlafzimmer', name: 'Regal 3', order: 3, widthM: 1.0, heightM: 1.0,
     plan: plan(1201, 1610, 1335, 1660), sections: [{ layers: 3 }], note: 'unter Abschnitt 1 von Regal 2' }
+];
+
+// ---------------------------------------------------------------- Keller (Skizzen des Nutzers, 2026-11-09)
+// Skizze 2 = Nummern der Regale, Skizze 1 = Anzahl Fächer. Tür unten in der Mitte.
+// Maßstab aus Regal 1 (1,2 m breit) und Regal 2/3 (je 1 m): ca. 108 Skizzen-Einheiten pro Meter.
+const KU = 108, KX0 = 190, KY0 = 640;
+function kplan(x0, y0, x1, y1) {
+  return { x: r2((x0 - KX0) / KU), y: r2((y0 - KY0) / KU), w: r2((x1 - x0) / KU), h: r2((y1 - y0) / KU) };
+}
+const kcase = (n, layers, p, extra = {}) => ({
+  id: `keller-${n}`, placeId: 'keller', roomId: 'keller-raum', name: `Regal ${n}`, order: n,
+  widthM: r2(Math.max(p.w, p.h)), heightM: null, plan: p, sections: [{ layers }], ...extra
+});
+
+export const KELLER_ROOMS = [
+  { id: 'keller-raum', placeId: 'keller', name: 'Kellerraum', order: 1, hasBooks: true, plan: kplan(190, 640, 630, 1335) }
+];
+
+export const KELLER_BOOKCASES = [
+  kcase(1, 5, kplan(240, 1282, 370, 1316), { widthM: 1.2, heightM: 2.0 }),   // unten links an der Wand neben der Tür
+  kcase(2, 4, kplan(196, 1182, 230, 1300), { widthM: 1.0, heightM: 2.0 }),   // linke Wand unten
+  kcase(3, 4, kplan(196, 1075, 230, 1180), { widthM: 1.0, heightM: 2.0 }),   // linke Wand darüber
+  kcase(4, 5, kplan(376, 1042, 406, 1190)),                                   // Mitte, rechtes von zwei
+  kcase(5, 5, kplan(342, 1045, 372, 1190)),                                   // Mitte, linkes von zwei
+  kcase(6, 5, kplan(578, 1145, 612, 1250)),                                   // rechte Wand, unten
+  kcase(7, 5, kplan(578, 1020, 612, 1143)),
+  kcase(8, 6, kplan(578, 905, 612, 1018)),
+  kcase(9, 6, kplan(578, 790, 612, 903)),                                     // rechte Wand, oben (darüber der Tisch)
+  kcase(10, 4, kplan(380, 905, 412, 1030)),                                   // Mitte, über 4/5
+  kcase(11, 4, kplan(196, 1020, 355, 1042)),                                  // quer von der linken Wand
+  kcase(12, 7, kplan(434, 680, 454, 830), { note: 'schmales Regal' }),        // oben, rechtes der drei schmalen
+  kcase(13, 7, kplan(376, 680, 400, 830), { note: 'schmales Regal' }),
+  kcase(14, 7, kplan(316, 680, 340, 835), { note: 'schmales Regal' }),
+  { ...kcase(15, 6, kplan(462, 655, 566, 690)), id: 'keller-themen', name: 'Themen', note: 'an der oberen Wand rechts' }
 ];

@@ -8,7 +8,7 @@
 // Fach 1 ist immer das oberste Fach eines Abschnitts.
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
 import { db } from './firebase.js';
-import { SEED_PLACES, SEED_ROOMS, SEED_BOOKCASES } from './library-seed.js';
+import { SEED_PLACES, SEED_ROOMS, SEED_BOOKCASES, KELLER_ROOMS, KELLER_BOOKCASES } from './library-seed.js';
 
 const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0);
 
@@ -31,6 +31,21 @@ export async function seedLibrary({ overwrite = false } = {}) {
     for (const { id, ...data } of items) {
       const ref = doc(db, name, id);
       if (!overwrite && (await getDoc(ref)).exists()) { skipped++; continue; }
+      await setDoc(ref, { ...data, updatedAt: serverTimestamp() });
+      written++;
+    }
+  }
+  return { written, skipped };
+}
+
+// Keller anlegen: Raum und Regale nur, wenn sie noch fehlen; der Ort "Keller" bekommt hasPlan = true.
+export async function seedKeller() {
+  await setDoc(doc(db, 'places', 'keller'), { hasPlan: true, updatedAt: serverTimestamp() }, { merge: true });
+  let written = 0, skipped = 0;
+  for (const [name, items] of [['rooms', KELLER_ROOMS], ['bookcases', KELLER_BOOKCASES]]) {
+    for (const { id, ...data } of items) {
+      const ref = doc(db, name, id);
+      if ((await getDoc(ref)).exists()) { skipped++; continue; }
       await setDoc(ref, { ...data, updatedAt: serverTimestamp() });
       written++;
     }
